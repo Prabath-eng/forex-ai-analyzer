@@ -39,6 +39,41 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   String selectedTimeframe = '15m';
   int bottomIndex = 0;
 
+  String signal = 'NEUTRAL';
+  int signalConfidence = 50;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateSignal();
+  }
+
+  void _calculateSignal() {
+    // Temporary analysis engine for UI testing.
+    // Real market price, news, ICT and SMC data will be connected later.
+    final scores = {
+      'XAU/USD': 3,
+      'EUR/USD': -2,
+      'GBP/USD': 0,
+      'USD/JPY': 2,
+    };
+
+    final score = scores[selectedAsset] ?? 0;
+
+    setState(() {
+      if (score >= 2) {
+        signal = 'BUY';
+        signalConfidence = 70 + (score * 5);
+      } else if (score <= -2) {
+        signal = 'SELL';
+        signalConfidence = 70 + (score.abs() * 5);
+      } else {
+        signal = 'NEUTRAL';
+        signalConfidence = 50 + (score.abs() * 5);
+      }
+    });
+  }
+
   final List<String> assets = [
     'XAU/USD',
     'EUR/USD',
@@ -197,6 +232,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               setState(() {
                 selectedAsset = asset;
               });
+              _calculateSignal();
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -312,18 +348,26 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ],
           ),
           const SizedBox(height: 18),
-          const Text(
-            'BUY',
+          Text(
+            signal,
             style: TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF00E676),
+              color: signal == 'BUY'
+                  ? const Color(0xFF00E676)
+                  : signal == 'SELL'
+                      ? Colors.redAccent
+                      : Colors.amber,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Bullish market structure detected',
-            style: TextStyle(
+          Text(
+            signal == 'BUY'
+                ? 'Bullish market structure detected'
+                : signal == 'SELL'
+                    ? 'Bearish market structure detected'
+                    : 'Market structure is unclear',
+            style: const TextStyle(
               color: Colors.white70,
             ),
           ),
@@ -333,7 +377,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               Expanded(
                 child: _metric(
                   'Confidence',
-                  '87%',
+                  '$signalConfidence%',
                   Icons.verified,
                 ),
               ),
@@ -347,8 +391,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               Expanded(
                 child: _metric(
                   'Trend',
-                  'Bullish',
-                  Icons.trending_up,
+                  signal == 'BUY'
+                      ? 'Bullish'
+                      : signal == 'SELL'
+                          ? 'Bearish'
+                          : 'Neutral',
+                  signal == 'BUY'
+                      ? Icons.trending_up
+                      : signal == 'SELL'
+                          ? Icons.trending_down
+                          : Icons.remove_circle_outline,
                 ),
               ),
             ],
