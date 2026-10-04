@@ -2,11 +2,20 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'api_key_service.dart';
+
 class MarketDataService {
   static const String baseUrl = 'https://api.twelvedata.com';
-  static const String apiKey = 'YOUR_API_KEY';
+
+  final ApiKeyService _apiKeyService = ApiKeyService();
 
   Future<Map<String, dynamic>> getQuote(String symbol) async {
+    final apiKey = await _apiKeyService.getApiKey();
+
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('Twelve Data API key is not saved');
+    }
+
     final uri = Uri.parse(
       '$baseUrl/quote?symbol=${Uri.encodeComponent(symbol)}&apikey=$apiKey',
     );

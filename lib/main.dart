@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'services/api_key_service.dart';
 
 void main() {
   runApp(const ForexAIAnalyzerApp());
@@ -41,6 +42,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
+
+  final ApiKeyService _apiKeyService = ApiKeyService();
+  final TextEditingController _apiKeyController = TextEditingController();
+  bool _apiKeySaved = false;
+
+  @override
+  void dispose() {
+    _apiKeyController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -1058,6 +1069,65 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               'Notify when price reaches a level',
               false,
             ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: _boxDecoration(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Twelve Data API',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Connect live forex and gold market data',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _apiKeyController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'API Key',
+                      hintText: 'Paste your Twelve Data API key',
+                      prefixIcon: const Icon(Icons.key_outlined),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.save_outlined),
+                        onPressed: _saveApiKey,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _saveApiKey,
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('Save API Key Securely'),
+                    ),
+                  ),
+                  if (_apiKeySaved) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'API key saved securely on this device.',
+                      style: TextStyle(
+                        color: Color(0xFF00C853),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 18),
             Container(
               width: double.infinity,
@@ -1110,6 +1180,26 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveApiKey() async {
+    final key = _apiKeyController.text.trim();
+
+    if (key.isEmpty) {
+      return;
+    }
+
+    await _apiKeyService.saveApiKey(key);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _apiKeySaved = true;
+    });
+
+    _apiKeyController.clear();
   }
 
   Widget _settingsTile(
