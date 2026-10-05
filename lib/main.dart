@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'services/api_key_service.dart';
+import 'services/market_data_service.dart';
 
 void main() {
   runApp(const ForexAIAnalyzerApp());
@@ -42,8 +43,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
+  String marketPrice = '--';
+  String marketChange = '--';
+  bool isMarketLoading = false;
+  final Map<String, Map<String, String>> _quoteCache = {};
+List<Map<String, dynamic>> liveCandles = [];
+String marketTrend = 'WAITING';
+String trendStrength = '--';
 
   final ApiKeyService _apiKeyService = ApiKeyService();
+  final MarketDataService _marketDataService = MarketDataService();
   final TextEditingController _apiKeyController = TextEditingController();
   bool _apiKeySaved = false;
 
@@ -57,32 +66,154 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   void initState() {
     super.initState();
     _calculateSignal();
+    _loadMarketData();
+  }
+
+  Future<void> _loadMarketData() async {
+    final cached = _quoteCache[selectedAsset];
+    if (cached != null) {
+      setState(() {
+        marketPrice = cached['price'] ?? '--';
+        marketChange = cached['change'] ?? '--';
+        isMarketLoading = false;
+      });
+      return;
+    }
+    setState(() {
+      isMarketLoading = true;
+    });
+
+    try {
+      final quote = await _marketDataService.getQuote(selectedAsset);
+
+      final price = double.tryParse(
+            quote['close']?.toString() ??
+                quote['price']?.toString() ??
+                '',
+          )?.toStringAsFixed(2) ??
+          '--';
+
+      final change = double.tryParse(
+            quote['percent_change']?.toString() ?? '',
+          )?.toStringAsFixed(2) ??
+          '--';
+
+      _quoteCache[selectedAsset] = {
+        'price': price,
+        'change': change == '--' ? '--' : '$change%',
+      };
+      if (!mounted) return;
+
+      setState(() {
+        marketPrice = price;
+        marketChange = change == '--' ? '--' : '$change%';
+        isMarketLoading = false;
+      });
+
+      try {
+        final candles = await _marketDataService.getTimeSeries(
+          selectedAsset,
+          interval: '15min',
+          outputsize: 100,
+        );
+
+        final values = candles['values'];
+
+        if (values is List && values.isNotEmpty) {
+          liveCandles = values
+              .whereType<Map>()
+              .map((candle) => Map<String, dynamic>.from(candle))
+              .toList();
+
+          _calculateMarketTrend();
+
+          if (mounted) {
+            _calculateSignal();
+          }
+
+          debugPrint(
+            'Live candles loaded: ${liveCandles.length}',
+          );
+        }
+      } catch (e) {
+        debugPrint('Candlestick request skipped: $e');
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        marketPrice = 'API Error';
+        marketChange = e.toString();
+        isMarketLoading = false;
+      });
+    }
+  }
+
+  void _calculateMarketTrend() {
+    if (liveCandles.length < 5) {
+      marketTrend = 'WAITING';
+      trendStrength = '--';
+      return;
+    }
+
+    final recent = liveCandles.take(20).toList();
+
+    final closes = recent
+        .map((candle) => double.tryParse(
+              candle['close']?.toString() ?? '',
+            ))
+        .whereType<double>()
+        .toList();
+
+    if (closes.length < 5) {
+      marketTrend = 'WAITING';
+      trendStrength = '--';
+      return;
+    }
+
+    final first = closes.last;
+    final last = closes.first;
+    final changePercent = first == 0
+        ? 0
+        : ((last - first) / first) * 100;
+
+    if (changePercent >= 0.15) {
+      marketTrend = 'UPTREND';
+      trendStrength = '${changePercent.abs().toStringAsFixed(2)}%';
+    } else if (changePercent <= -0.15) {
+      marketTrend = 'DOWNTREND';
+      trendStrength = '${changePercent.abs().toStringAsFixed(2)}%';
+    } else {
+      marketTrend = 'SIDEWAYS';
+      trendStrength = '${changePercent.abs().toStringAsFixed(2)}%';
+    }
   }
 
   void _calculateSignal() {
-    // Temporary analysis engine for UI testing.
-    // Real market price, news, ICT and SMC data will be connected later.
-    final scores = {
-      'XAU/USD': 3,
-      'EUR/USD': -2,
-      'GBP/USD': 0,
-      'USD/JPY': 2,
-    };
-
-    final score = scores[selectedAsset] ?? 0;
-
-    setState(() {
-      if (score >= 2) {
-        signal = 'BUY';
-        signalConfidence = 70 + (score * 5);
-      } else if (score <= -2) {
-        signal = 'SELL';
-        signalConfidence = 70 + (score.abs() * 5);
-      } else {
+    if (liveCandles.length < 5) {
+      setState(() {
         signal = 'NEUTRAL';
-        signalConfidence = 50 + (score.abs() * 5);
-      }
-    });
+        signalConfidence = 50;
+      });
+      return;
+    }
+
+    if (marketTrend == 'UPTREND') {
+      setState(() {
+        signal = 'BUY';
+        signalConfidence = 70;
+      });
+    } else if (marketTrend == 'DOWNTREND') {
+      setState(() {
+        signal = 'SELL';
+        signalConfidence = 70;
+      });
+    } else {
+      setState(() {
+        signal = 'NEUTRAL';
+        signalConfidence = 50;
+      });
+    }
   }
 
   final List<String> assets = [
@@ -244,6 +375,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                 selectedAsset = asset;
               });
               _calculateSignal();
+    _loadMarketData();
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -301,20 +433,22 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               ],
             ),
           ),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '\$2,651.80',
-                style: TextStyle(
+                isMarketLoading ? 'Loading...' : marketPrice,
+                style: const TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '+0.42%',
+                marketChange,
                 style: TextStyle(
-                  color: Color(0xFF00C853),
+                  color: marketChange.startsWith('-')
+                      ? Colors.redAccent
+                      : const Color(0xFF00C853),
                   fontWeight: FontWeight.bold,
                 ),
               ),
