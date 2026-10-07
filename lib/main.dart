@@ -61,7 +61,49 @@ void _updateMarketStructure() {
 Map<String, List<Map<String, dynamic>>> _candleCache = {};
 String marketTrend = 'WAITING';
 String trendStrength = '--';
-
+Widget _buildMarketStructureCard() {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    decoration: BoxDecoration(
+      color: const Color(0xFF111827),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'ICT / SMC Market Structure',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Structure: ${marketStructure.structure}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Trend: ${marketStructure.trend}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'BOS: ${marketStructure.bos ? "YES" : "NO"}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'CHOCH: ${marketStructure.choch ? "YES" : "NO"}',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ],
+    ),
+  );
+}
   final ApiKeyService _apiKeyService = ApiKeyService();
   final MarketDataService _marketDataService = MarketDataService();
   final TextEditingController _apiKeyController = TextEditingController();
@@ -527,6 +569,8 @@ String trendStrength = '--';
             _buildSignalCard(),
             const SizedBox(height: 14),
             _buildChartCard(),
+            const SizedBox(height: 14),
+            _buildMarketStructureCard(),
             const SizedBox(height: 14),
             _buildAnalysisGrid(),
             const SizedBox(height: 14),

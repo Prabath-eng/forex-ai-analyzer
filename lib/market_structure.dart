@@ -34,19 +34,60 @@ class MarketStructure {
                                                                 if (low != null) lows.add(low);
                                                                   }
 
-                                                                    if (highs.length < 3 || lows.length < 3) {
-                                                                        return const MarketStructure(
-                                                                              structure: "NONE",
-                                                                                    trend: "NEUTRAL",
-                                                                                          bos: false,
-                                                                                                choch: false,
-                                                                                                    );
-                                                                                                      }
+if (highs.length < 3 || lows.length < 3) {
+  return const MarketStructure(
+    structure: "NONE",
+    trend: "NEUTRAL",
+    bos: false,
+    choch: false,
+  );
+}
 
-                                                                                                        return const MarketStructure(
-                                                                                                            structure: "NONE",
-                                                                                                                trend: "NEUTRAL",
-                                                                                                                    bos: false,
-                                                                                                                        choch: false,
-                                                                                                                          );
+  final recentHigh1 = highs[highs.length - 1];                                                                                               
+  final recentHigh2 = highs[highs.length - 2];
+  final recentLow1 = lows[lows.length - 1];
+  final recentLow2 = lows[lows.length - 2];
+bool bos = false;
+bool choch = false;
+
+final previousHigh = recentHigh2;
+final previousLow = recentLow2;
+  String structure = "NONE";
+  String trend = "NEUTRAL";
+  if (recentHigh1 > recentHigh2 && recentLow1 > recentLow2) {
+    structure = "HH / HL";
+    trend = "BULLISH";
+  } else if (recentHigh1 < recentHigh2 && recentLow1 < recentLow2) {
+    structure = "LH / LL";
+    trend = "BEARISH";
+  } else if (recentHigh1 > recentHigh2) {
+    structure = "HH";
+    trend = "BULLISH";
+  } else if (recentLow1 > recentLow2) {
+    structure = "HL";
+    trend = "BULLISH";
+  } else if (recentHigh1 < recentHigh2) {
+    structure = "LH";
+    trend = "BEARISH";
+  } else if (recentLow1 < recentLow2) {
+    structure = "LL";
+    trend = "BEARISH";
+  }
+if (trend == "BULLISH" && recentHigh1 > previousHigh) {
+  bos = true;
+} else if (trend == "BEARISH" && recentLow1 < previousLow) {
+  bos = true;
+}
+if (trend == "BULLISH" && recentLow1 < previousLow) {
+  choch = true;
+} else if (trend == "BEARISH" && recentHigh1 > previousHigh) {
+  choch = true;
+}
+  return MarketStructure(
+    structure: structure,
+    trend: trend,
+    bos: bos,
+    choch: choch,
+  );
+                                                                                                        
                                                                                                                           }
