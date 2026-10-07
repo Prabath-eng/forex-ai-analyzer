@@ -43,6 +43,48 @@ class MarketDataService {
     return decoded;
   }
 
+
+  Future<Map<String, dynamic>> getTimeSeries(
+    String symbol, {
+    String interval = '15min',
+    int outputsize = 100,
+  }) async {
+    final apiKey = await _apiKeyService.getApiKey();
+
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('Twelve Data API key is not saved');
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/time_series?symbol=${Uri.encodeComponent(symbol)}'
+      '&interval=$interval'
+      '&outputsize=$outputsize'
+      '&apikey=$apiKey',
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Candlestick request failed: ${response.statusCode}',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Invalid candlestick response');
+    }
+
+    if (decoded['status'] == 'error') {
+      throw Exception(
+        decoded['message']?.toString() ?? 'Candlestick API error',
+      );
+    }
+
+    return decoded;
+  }
+
   Future<Map<String, dynamic>> getGoldQuote() {
     return getQuote('XAU/USD');
   }

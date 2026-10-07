@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'market_structure.dart';
 import 'services/api_key_service.dart';
 import 'services/market_data_service.dart';
 
@@ -48,6 +49,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   bool isMarketLoading = false;
   final Map<String, Map<String, String>> _quoteCache = {};
 List<Map<String, dynamic>> liveCandles = [];
+MarketStructure marketStructure = const MarketStructure(
+  structure: 'NONE',
+  trend: 'NEUTRAL',
+  bos: false,
+  choch: false,
+);
+void _updateMarketStructure() {
+  marketStructure = analyzeMarketStructure(liveCandles);
+}
+Map<String, List<Map<String, dynamic>>> _candleCache = {};
 String marketTrend = 'WAITING';
 String trendStrength = '--';
 
@@ -75,16 +86,14 @@ String trendStrength = '--';
       setState(() {
         marketPrice = cached['price'] ?? '--';
         marketChange = cached['change'] ?? '--';
-        isMarketLoading = false;
       });
-      return;
     }
     setState(() {
       isMarketLoading = true;
     });
 
     try {
-      final quote = await _marketDataService.getQuote(selectedAsset);
+      final quote = cached != null ? {'close': cached['price'], 'percent_change': cached['change']?.replaceAll('%', '')} : await _marketDataService.getQuote(selectedAsset);
 
       final price = double.tryParse(
             quote['close']?.toString() ??
@@ -111,11 +120,7 @@ String trendStrength = '--';
       });
 
       try {
-        final candles = await _marketDataService.getTimeSeries(
-          selectedAsset,
-          interval: '15min',
-          outputsize: 100,
-        );
+        final candles = _candleCache[selectedAsset] != null ? {'values': _candleCache[selectedAsset]} : await _marketDataService.getTimeSeries(selectedAsset, interval: '15min', outputsize: 100);
 
         final values = candles['values'];
 
@@ -125,6 +130,8 @@ String trendStrength = '--';
               .map((candle) => Map<String, dynamic>.from(candle))
               .toList();
 
+          _candleCache[selectedAsset] = liveCandles;
+          _updateMarketStructure();
           _calculateMarketTrend();
 
           if (mounted) {
@@ -153,7 +160,6 @@ String trendStrength = '--';
     if (liveCandles.length < 5) {
       marketTrend = 'WAITING';
       trendStrength = '--';
-      return;
     }
 
     final recent = liveCandles.take(20).toList();
@@ -168,7 +174,6 @@ String trendStrength = '--';
     if (closes.length < 5) {
       marketTrend = 'WAITING';
       trendStrength = '--';
-      return;
     }
 
     final first = closes.last;
@@ -198,22 +203,198 @@ String trendStrength = '--';
       return;
     }
 
-    if (marketTrend == 'UPTREND') {
-      setState(() {
-        signal = 'BUY';
-        signalConfidence = 70;
-      });
-    } else if (marketTrend == 'DOWNTREND') {
-      setState(() {
-        signal = 'SELL';
-        signalConfidence = 70;
-      });
-    } else {
-      setState(() {
-        signal = 'NEUTRAL';
-        signalConfidence = 50;
-      });
+    int score = 0;
+    final liquidity = _liquidityLevels();
+    final price = double.tryParse(marketPrice) ?? 0;
+    if (liquidity["low"]! > 0 && price > 0) {
+      if (price <= liquidity["low"]! * 1.001) score += 1;
     }
+    if (liquidity["high"]! > 0 && price > 0) {
+      if (price >= liquidity["high"]! * 0.999) score -= 1;
+    }
+
+    score += _liquiditySweepScore();
+
+    score += _candlestickScore();
+    final sr = _supportResistance();
+    final currentPrice = double.tryParse(marketPrice);
+    if (currentPrice != null && sr["support"]! > 0 && sr["resistance"]! > 0) {
+      final range = sr["resistance"]! - sr["support"]!;
+      if (range > 0) {
+        final position = (currentPrice - sr["support"]!) / range;
+        if (position < 0.25) score += 1;
+        if (position > 0.75) score -= 1;
+      }
+    }
+    if (marketTrend == 'UPTREND') score += 2;
+    if (marketTrend == 'DOWNTREND') score -= 2;
+
+    final closes = liveCandles
+        .map((c) => double.tryParse(c['close']?.toString() ?? ''))
+        .whereType<double>()
+        .take(20)
+        .toList();
+
+    if (closes.length >= 5) {
+      final recent = closes.take(5).reduce((a, b) => a + b) / 5;
+      final older = closes.skip(5).take(5).toList();
+      if (older.length >= 5) {
+        final previous = older.reduce((a, b) => a + b) / older.length;
+        if (recent > previous) score += 1;
+        if (recent < previous) score -= 1;
+      }
+    }
+
+    String newSignal = 'NEUTRAL';
+    int confidence = 50;
+    if (score >= 3) {
+      newSignal = 'BUY';
+      confidence = 75;
+    } else if (score <= -3) {
+      newSignal = 'SELL';
+      confidence = 75;
+    } else if (score > 0) {
+      newSignal = 'BUY';
+      confidence = 60;
+
+    } else if (score < 0) {
+      newSignal = 'SELL';
+      confidence = 60;
+    }
+
+    setState(() {
+      signal = newSignal;
+      signalConfidence = confidence;
+    });
+  }
+  String _candlestickLabel() {
+    final score = _candlestickScore();
+    if (score >= 2) return "Bullish";
+    if (score <= -2) return "Bearish";
+    return "Neutral";
+  }
+
+  String _liquidityLabel() {
+    final score = _liquiditySweepScore();
+    if (score > 0) return "Bullish Sweep";
+    if (score < 0) return "Bearish Sweep";
+    return "No Sweep";
+  }
+
+  Map<String, double> _supportResistance() {
+    if (liveCandles.length < 10) return {"support": 0, "resistance": 0};
+
+    final recent = liveCandles.take(20).toList();
+    final highs = recent.map((c) => double.tryParse(c["high"]?.toString() ?? "")).whereType<double>().toList();
+    final lows = recent.map((c) => double.tryParse(c["low"]?.toString() ?? "")).whereType<double>().toList();
+
+    if (highs.isEmpty || lows.isEmpty) return {"support": 0, "resistance": 0};
+
+    return {
+      "support": lows.reduce(math.min),
+      "resistance": highs.reduce(math.max),
+    };
+  }
+
+
+  int _candlestickScore() {
+    if (liveCandles.length < 2) return 0;
+
+    final current = liveCandles[0];
+    final previous = liveCandles[1];
+
+    final open = double.tryParse(current["open"]?.toString() ?? "");
+    final high = double.tryParse(current["high"]?.toString() ?? "");
+    final low = double.tryParse(current["low"]?.toString() ?? "");
+    final close = double.tryParse(current["close"]?.toString() ?? "");
+
+    final prevOpen = double.tryParse(previous["open"]?.toString() ?? "");
+    final prevClose = double.tryParse(previous["close"]?.toString() ?? "");
+
+    if ([open, high, low, close, prevOpen, prevClose]
+        .any((v) => v == null)) {
+      return 0;
+    }
+
+    int score = 0;
+
+    final body = (close! - open!).abs();
+    final upperWick = high! - math.max(open, close);
+    final lowerWick = math.min(open, close) - low!;
+
+    if (close > open && lowerWick > body * 2) {
+      score += 2;
+    }
+
+    if (close < open && upperWick > body * 2) {
+      score -= 2;
+    }
+
+    if (close > open &&
+        prevClose! < prevOpen! &&
+        close > prevOpen &&
+        open < prevClose) {
+      score += 2;
+    }
+
+    if (close < open &&
+        prevClose! > prevOpen! &&
+        close < prevOpen &&
+        open > prevClose) {
+      score -= 2;
+    }
+
+    return score.clamp(-2, 2);
+  }
+
+  int _liquiditySweepScore() {
+    if (liveCandles.length < 5) return 0;
+
+    final liquidity = _liquidityLevels();
+    final current = liveCandles[0];
+
+    final high = double.tryParse(current["high"]?.toString() ?? "");
+    final low = double.tryParse(current["low"]?.toString() ?? "");
+    final close = double.tryParse(current["close"]?.toString() ?? "");
+
+    if (high == null || low == null || close == null) return 0;
+
+    int score = 0;
+
+    if (liquidity["high"]! > 0 && high > liquidity["high"]! && close < liquidity["high"]!) {
+      score -= 2;
+    }
+
+    if (liquidity["low"]! > 0 && low < liquidity["low"]! && close > liquidity["low"]!) {
+      score += 2;
+    }
+
+    return score;
+  }
+
+  Map<String, double> _liquidityLevels() {
+    if (liveCandles.length < 10) {
+      return {"high": 0, "low": 0};
+    }
+
+    final recent = liveCandles.skip(1).take(30).toList();
+    final highs = recent
+        .map((c) => double.tryParse(c["high"]?.toString() ?? ""))
+        .whereType<double>()
+        .toList();
+    final lows = recent
+        .map((c) => double.tryParse(c["low"]?.toString() ?? ""))
+        .whereType<double>()
+        .toList();
+
+    if (highs.isEmpty || lows.isEmpty) {
+      return {"high": 0, "low": 0};
+    }
+
+    return {
+      "high": highs.reduce(math.max),
+      "low": lows.reduce(math.min),
+    };
   }
 
   final List<String> assets = [
@@ -374,7 +555,6 @@ String trendStrength = '--';
               setState(() {
                 selectedAsset = asset;
               });
-              _calculateSignal();
     _loadMarketData();
             },
             child: Container(
@@ -677,11 +857,22 @@ String trendStrength = '--';
             ),
             _analysisCard(
               'Patterns',
-              'Bullish',
-              'Higher High / Higher Low',
+              _candlestickLabel(),
+              _candlestickLabel() == 'Bullish' ? 'Bullish candle pattern detected' : _candlestickLabel() == 'Bearish' ? 'Bearish candle pattern detected' : 'No strong candle pattern',
               Icons.candlestick_chart,
             ),
             _analysisCard(
+              'Liquidity',
+              _liquidityLabel(),
+              _liquidityLabel() == 'Bullish Sweep'
+                  ? 'Sell-side liquidity swept'
+                  : _liquidityLabel() == 'Bearish Sweep'
+                      ? 'Buy-side liquidity swept'
+                      : 'No liquidity sweep detected',
+              Icons.water_drop,
+            ),
+            _analysisCard(
+
               'Momentum',
               'Strong',
               'Buying pressure rising',
@@ -901,6 +1092,7 @@ String trendStrength = '--';
               ),
               Expanded(
                 child: _finalMetric(
+
                   'Momentum',
                   'Strong',
                 ),
@@ -1320,13 +1512,11 @@ String trendStrength = '--';
     final key = _apiKeyController.text.trim();
 
     if (key.isEmpty) {
-      return;
     }
 
     await _apiKeyService.saveApiKey(key);
 
     if (!mounted) {
-      return;
     }
 
     setState(() {
