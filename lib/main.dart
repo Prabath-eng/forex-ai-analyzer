@@ -287,6 +287,10 @@ Widget _buildMarketStructureCard() {
       }
     }
 
+    // Align final AI signal with ICT/SMC market structure
+    if (marketStructure.trend == 'BULLISH' && score < 0) score = 1;
+    if (marketStructure.trend == 'BEARISH' && score > 0) score = -1;
+
     String newSignal = 'NEUTRAL';
     int confidence = 50;
     if (score >= 3) {
