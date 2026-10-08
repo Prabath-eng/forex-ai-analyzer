@@ -1673,8 +1673,8 @@ class CandleChartPainter extends CustomPainter {
     final double usableHeight =
         chartHeight - topPadding - bottomPadding;
 
-    double minPrice = chartPrices.reduce(math.min);
-    double maxPrice = chartPrices.reduce(math.max);
+    double minPrice = candles.isNotEmpty ? candles.reversed.map((c) => double.tryParse(c["low"]?.toString() ?? "") ?? 0).where((p) => p > 0).reduce(math.min) : chartPrices.reduce(math.min);
+    double maxPrice = candles.isNotEmpty ? candles.reversed.map((c) => double.tryParse(c["high"]?.toString() ?? "") ?? 0).where((p) => p > 0).reduce(math.max) : chartPrices.reduce(math.max);
 
     final double range = maxPrice - minPrice;
 
@@ -1751,19 +1751,10 @@ class CandleChartPainter extends CustomPainter {
     for (int i = 0; i < chartPrices.length; i++) {
       final double close = chartPrices[i];
 
-      final double open = i == 0
-          ? close - 2
-          : chartPrices[i - 1];
-
-      final double high =
-          math.max(open, close) +
-          2.2 +
-          (i % 3) * 0.6;
-
-      final double low =
-          math.min(open, close) -
-          2.0 -
-          (i % 2) * 0.7;
+      final candle = candles.reversed.elementAt(i);
+      final double open = double.tryParse(candle["open"]?.toString() ?? "") ?? close;
+      final double high = double.tryParse(candle["high"]?.toString() ?? "") ?? math.max(open, close);
+      final double low = double.tryParse(candle["low"]?.toString() ?? "") ?? math.min(open, close);
 
       final double x =
           leftPadding +
