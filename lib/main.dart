@@ -58,7 +58,7 @@ MarketStructure marketStructure = const MarketStructure(
 void _updateMarketStructure() {
   marketStructure = analyzeMarketStructure(liveCandles);
 }
-Map<String, List<Map<String, dynamic>>> _candleCache = {};
+final Map<String, List<Map<String, dynamic>>> _candleCache = {};
 String marketTrend = 'WAITING';
 String trendStrength = '--';
 Widget _buildMarketStructureCard() {
@@ -861,7 +861,7 @@ Widget _buildMarketStructureCard() {
             height: 260,
             width: double.infinity,
             child: CustomPaint(
-              painter: CandleChartPainter(),
+              painter: CandleChartPainter(candles: liveCandles),
             ),
           ),
         ],
@@ -1076,7 +1076,10 @@ Widget _buildMarketStructureCard() {
         ],
       ),
     );
-  }  Widget _buildFinalAnalysisCard() {
+
+  }
+
+  Widget _buildFinalAnalysisCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -1243,7 +1246,7 @@ Widget _buildMarketStructureCard() {
                     height: 330,
                     width: double.infinity,
                     child: CustomPaint(
-                      painter: CandleChartPainter(),
+                      painter: CandleChartPainter(candles: liveCandles),
                     ),
                   ),
                 ],
@@ -1616,6 +1619,9 @@ Widget _buildMarketStructureCard() {
 }
 
 class CandleChartPainter extends CustomPainter {
+  final List<Map<String, dynamic>> candles;
+
+  CandleChartPainter({required this.candles});
   final List<double> prices = [
     2640,
     2643,
@@ -1657,6 +1663,7 @@ class CandleChartPainter extends CustomPainter {
 
     const double leftPadding = 8;
     const double rightPadding = 45;
+    final List<double> chartPrices = candles.isNotEmpty ? candles.reversed.map((c) => double.tryParse(c["close"]?.toString() ?? "") ?? 0).where((p) => p > 0).toList() : prices;
     const double topPadding = 12;
     const double bottomPadding = 22;
 
@@ -1666,8 +1673,8 @@ class CandleChartPainter extends CustomPainter {
     final double usableHeight =
         chartHeight - topPadding - bottomPadding;
 
-    double minPrice = prices.reduce(math.min);
-    double maxPrice = prices.reduce(math.max);
+    double minPrice = chartPrices.reduce(math.min);
+    double maxPrice = chartPrices.reduce(math.max);
 
     final double range = maxPrice - minPrice;
 
@@ -1729,7 +1736,7 @@ class CandleChartPainter extends CustomPainter {
     }
 
     final double candleStep =
-        usableWidth / prices.length;
+        usableWidth / chartPrices.length;
 
     final double candleWidth =
         candleStep * 0.58;
@@ -1741,12 +1748,12 @@ class CandleChartPainter extends CustomPainter {
               usableHeight;
     }
 
-    for (int i = 0; i < prices.length; i++) {
-      final double close = prices[i];
+    for (int i = 0; i < chartPrices.length; i++) {
+      final double close = chartPrices[i];
 
       final double open = i == 0
           ? close - 2
-          : prices[i - 1];
+          : chartPrices[i - 1];
 
       final double high =
           math.max(open, close) +
@@ -1809,13 +1816,13 @@ class CandleChartPainter extends CustomPainter {
 
     final Path path = Path();
 
-    for (int i = 0; i < prices.length; i++) {
+    for (int i = 0; i < chartPrices.length; i++) {
       final double x =
           leftPadding +
           candleStep * i +
           candleStep / 2;
 
-      final double y = priceToY(prices[i]);
+      final double y = priceToY(chartPrices[i]);
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -1826,7 +1833,7 @@ class CandleChartPainter extends CustomPainter {
 
     canvas.drawPath(path, linePaint);
 
-    final double currentPrice = prices.last;
+    final double currentPrice = chartPrices.last;
     final double currentY = priceToY(currentPrice);
 
     final markerPaint = Paint()
