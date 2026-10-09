@@ -1,3 +1,4 @@
+
 class MarketStructure {
       final String structure;
         final String trend;
@@ -23,7 +24,8 @@ class MarketStructure {
                                         );
                                           }
 
-                                            final highs = <double>[];
+
+  final highs = <double>[];
                                               final lows = <double>[];
 
                                                 for (final candle in candles) {
@@ -43,10 +45,10 @@ if (highs.length < 3 || lows.length < 3) {
   );
 }
 
-  final recentHigh1 = highs[highs.length - 1];                                                                                               
-  final recentHigh2 = highs[highs.length - 2];
-  final recentLow1 = lows[lows.length - 1];
-  final recentLow2 = lows[lows.length - 2];
+  final recentHigh1 = highs[0];                                                                                               
+  final recentHigh2 = highs[1];
+  final recentLow1 = lows[0];
+  final recentLow2 = lows[1];
 bool bos = false;
 bool choch = false;
 

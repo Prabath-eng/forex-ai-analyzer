@@ -44,6 +44,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
+  String signalDebug = "--";
   String marketPrice = '--';
   String marketChange = '--';
   bool isMarketLoading = false;
@@ -216,6 +217,7 @@ Widget _buildMarketStructureCard() {
     if (closes.length < 5) {
       marketTrend = 'WAITING';
       trendStrength = '--';
+      return;
     }
 
     final first = closes.last;
@@ -291,6 +293,7 @@ Widget _buildMarketStructureCard() {
     if (marketStructure.trend == 'BULLISH' && score < 0) score = 1;
     if (marketStructure.trend == 'BEARISH' && score > 0) score = -1;
 
+    debugPrint('SIGNAL DEBUG: score=$score, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}');
     String newSignal = 'NEUTRAL';
     int confidence = 50;
     if (score >= 3) {
@@ -299,18 +302,12 @@ Widget _buildMarketStructureCard() {
     } else if (score <= -3) {
       newSignal = 'SELL';
       confidence = 75;
-    } else if (score > 0) {
-      newSignal = 'BUY';
-      confidence = 60;
-
-    } else if (score < 0) {
-      newSignal = 'SELL';
-      confidence = 60;
     }
 
     setState(() {
       signal = newSignal;
       signalConfidence = confidence;
+      signalDebug = "Score: $score | Trend: $marketTrend | Structure: ${marketStructure.trend}";
     });
   }
   String _candlestickLabel() {
