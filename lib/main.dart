@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
 import 'market_structure.dart';
 import 'services/api_key_service.dart';
 import 'services/market_data_service.dart';
@@ -49,62 +51,64 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   String marketChange = '--';
   bool isMarketLoading = false;
   final Map<String, Map<String, String>> _quoteCache = {};
-List<Map<String, dynamic>> liveCandles = [];
-MarketStructure marketStructure = const MarketStructure(
-  structure: 'NONE',
-  trend: 'NEUTRAL',
-  bos: false,
-  choch: false,
-);
-void _updateMarketStructure() {
-  marketStructure = analyzeMarketStructure(liveCandles);
-}
-final Map<String, List<Map<String, dynamic>>> _candleCache = {};
-String marketTrend = 'WAITING';
-String trendStrength = '--';
-Widget _buildMarketStructureCard() {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    decoration: BoxDecoration(
-      color: const Color(0xFF111827),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'ICT / SMC Market Structure',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Structure: ${marketStructure.structure}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Trend: ${marketStructure.trend}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'BOS: ${marketStructure.bos ? "YES" : "NO"}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'CHOCH: ${marketStructure.choch ? "YES" : "NO"}',
-          style: const TextStyle(color: Colors.white),
-        ),
-      ],
-    ),
+  List<Map<String, dynamic>> liveCandles = [];
+  MarketStructure marketStructure = const MarketStructure(
+    structure: 'NONE',
+    trend: 'NEUTRAL',
+    bos: false,
+    choch: false,
   );
-}
+  void _updateMarketStructure() {
+    marketStructure = analyzeMarketStructure(liveCandles);
+  }
+
+  final Map<String, List<Map<String, dynamic>>> _candleCache = {};
+  String marketTrend = 'WAITING';
+  String trendStrength = '--';
+  Widget _buildMarketStructureCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ICT / SMC Market Structure',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Structure: ${marketStructure.structure}',
+            style: const TextStyle(color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Trend: ${marketStructure.trend}',
+            style: const TextStyle(color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'BOS: ${marketStructure.bos ? "YES" : "NO"}',
+            style: const TextStyle(color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'CHOCH: ${marketStructure.choch ? "YES" : "NO"}',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
   final ApiKeyService _apiKeyService = ApiKeyService();
   final MarketDataService _marketDataService = MarketDataService();
   final TextEditingController _apiKeyController = TextEditingController();
@@ -136,18 +140,22 @@ Widget _buildMarketStructureCard() {
     });
 
     try {
-      final quote = cached != null ? {'close': cached['price'], 'percent_change': cached['change']?.replaceAll('%', '')} : await _marketDataService.getQuote(selectedAsset);
+      final quote = cached != null
+          ? {
+              'close': cached['price'],
+              'percent_change': cached['change']?.replaceAll('%', ''),
+            }
+          : await _marketDataService.getQuote(selectedAsset);
 
-      final price = double.tryParse(
-            quote['close']?.toString() ??
-                quote['price']?.toString() ??
-                '',
+      final price =
+          double.tryParse(
+            quote['close']?.toString() ?? quote['price']?.toString() ?? '',
           )?.toStringAsFixed(2) ??
           '--';
 
-      final change = double.tryParse(
-            quote['percent_change']?.toString() ?? '',
-          )?.toStringAsFixed(2) ??
+      final change =
+          double.tryParse(quote['percent_change']?.toString() ?? '')
+              ?.toStringAsFixed(2) ??
           '--';
 
       _quoteCache[selectedAsset] = {
@@ -163,7 +171,13 @@ Widget _buildMarketStructureCard() {
       });
 
       try {
-        final candles = _candleCache[selectedAsset] != null ? {'values': _candleCache[selectedAsset]} : await _marketDataService.getTimeSeries(selectedAsset, interval: '15min', outputsize: 100);
+        final candles = _candleCache[selectedAsset] != null
+            ? {'values': _candleCache[selectedAsset]}
+            : await _marketDataService.getTimeSeries(
+                selectedAsset,
+                interval: '15min',
+                outputsize: 100,
+              );
 
         final values = candles['values'];
 
@@ -173,6 +187,11 @@ Widget _buildMarketStructureCard() {
               .map((candle) => Map<String, dynamic>.from(candle))
               .toList();
 
+          liveCandles.sort(
+            (a, b) => (b["datetime"]?.toString() ?? "").compareTo(
+              a["datetime"]?.toString() ?? "",
+            ),
+          );
           _candleCache[selectedAsset] = liveCandles;
           _updateMarketStructure();
           _calculateMarketTrend();
@@ -181,9 +200,7 @@ Widget _buildMarketStructureCard() {
             _calculateSignal();
           }
 
-          debugPrint(
-            'Live candles loaded: ${liveCandles.length}',
-          );
+          debugPrint('Live candles loaded: ${liveCandles.length}');
         }
       } catch (e) {
         debugPrint('Candlestick request skipped: $e');
@@ -203,14 +220,13 @@ Widget _buildMarketStructureCard() {
     if (liveCandles.length < 5) {
       marketTrend = 'WAITING';
       trendStrength = '--';
+      return;
     }
 
     final recent = liveCandles.take(20).toList();
 
     final closes = recent
-        .map((candle) => double.tryParse(
-              candle['close']?.toString() ?? '',
-            ))
+        .map((candle) => double.tryParse(candle['close']?.toString() ?? ''))
         .whereType<double>()
         .toList();
 
@@ -220,11 +236,9 @@ Widget _buildMarketStructureCard() {
       return;
     }
 
-    final first = closes.last;
-    final last = closes.first;
-    final changePercent = first == 0
-        ? 0
-        : ((last - first) / first) * 100;
+    final oldest = closes.last;
+    final newest = closes.first;
+    final changePercent = oldest == 0 ? 0 : ((newest - oldest) / oldest) * 100;
 
     if (changePercent >= 0.15) {
       marketTrend = 'UPTREND';
@@ -289,17 +303,25 @@ Widget _buildMarketStructureCard() {
       }
     }
 
-    // Align final AI signal with ICT/SMC market structure
-    if (marketStructure.trend == 'BULLISH' && score < 0) score = 1;
-    if (marketStructure.trend == 'BEARISH' && score > 0) score = -1;
+    // Require trend and ICT/SMC structure to agree.
+    final trendAgreesBullish =
+        marketTrend == 'UPTREND' &&
+        marketStructure.trend == 'BULLISH';
+    final trendAgreesBearish =
+        marketTrend == 'DOWNTREND' &&
+        marketStructure.trend == 'BEARISH';
 
-    debugPrint('SIGNAL DEBUG: score=$score, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}');
+    debugPrint(
+      'SIGNAL DEBUG: score=$score, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}',
+    );
+
     String newSignal = 'NEUTRAL';
     int confidence = 50;
-    if (score >= 3) {
+
+    if (trendAgreesBullish && score >= 3) {
       newSignal = 'BUY';
       confidence = 75;
-    } else if (score <= -3) {
+    } else if (trendAgreesBearish && score <= -3) {
       newSignal = 'SELL';
       confidence = 75;
     }
@@ -307,9 +329,11 @@ Widget _buildMarketStructureCard() {
     setState(() {
       signal = newSignal;
       signalConfidence = confidence;
-      signalDebug = "Score: $score | Trend: $marketTrend | Structure: ${marketStructure.trend}";
+      signalDebug =
+          "Score: $score | Trend: $marketTrend | Structure: ${marketStructure.trend}";
     });
   }
+
   String _candlestickLabel() {
     final score = _candlestickScore();
     if (score >= 2) return "Bullish";
@@ -328,8 +352,14 @@ Widget _buildMarketStructureCard() {
     if (liveCandles.length < 10) return {"support": 0, "resistance": 0};
 
     final recent = liveCandles.take(20).toList();
-    final highs = recent.map((c) => double.tryParse(c["high"]?.toString() ?? "")).whereType<double>().toList();
-    final lows = recent.map((c) => double.tryParse(c["low"]?.toString() ?? "")).whereType<double>().toList();
+    final highs = recent
+        .map((c) => double.tryParse(c["high"]?.toString() ?? ""))
+        .whereType<double>()
+        .toList();
+    final lows = recent
+        .map((c) => double.tryParse(c["low"]?.toString() ?? ""))
+        .whereType<double>()
+        .toList();
 
     if (highs.isEmpty || lows.isEmpty) return {"support": 0, "resistance": 0};
 
@@ -338,7 +368,6 @@ Widget _buildMarketStructureCard() {
       "resistance": highs.reduce(math.max),
     };
   }
-
 
   int _candlestickScore() {
     if (liveCandles.length < 2) return 0;
@@ -354,8 +383,7 @@ Widget _buildMarketStructureCard() {
     final prevOpen = double.tryParse(previous["open"]?.toString() ?? "");
     final prevClose = double.tryParse(previous["close"]?.toString() ?? "");
 
-    if ([open, high, low, close, prevOpen, prevClose]
-        .any((v) => v == null)) {
+    if ([open, high, low, close, prevOpen, prevClose].any((v) => v == null)) {
       return 0;
     }
 
@@ -404,11 +432,15 @@ Widget _buildMarketStructureCard() {
 
     int score = 0;
 
-    if (liquidity["high"]! > 0 && high > liquidity["high"]! && close < liquidity["high"]!) {
+    if (liquidity["high"]! > 0 &&
+        high > liquidity["high"]! &&
+        close < liquidity["high"]!) {
       score -= 2;
     }
 
-    if (liquidity["low"]! > 0 && low < liquidity["low"]! && close > liquidity["low"]!) {
+    if (liquidity["low"]! > 0 &&
+        low < liquidity["low"]! &&
+        close > liquidity["low"]!) {
       score += 2;
     }
 
@@ -434,28 +466,13 @@ Widget _buildMarketStructureCard() {
       return {"high": 0, "low": 0};
     }
 
-    return {
-      "high": highs.reduce(math.max),
-      "low": lows.reduce(math.min),
-    };
+    return {"high": highs.reduce(math.max), "low": lows.reduce(math.min)};
   }
 
-  final List<String> assets = [
-    'XAU/USD',
-    'EUR/USD',
-    'GBP/USD',
-    'USD/JPY',
-  ];
+  final List<String> assets = ['XAU/USD', 'EUR/USD', 'GBP/USD', 'USD/JPY'];
 
-  final List<String> timeframes = [
-    '1m',
-    '5m',
-    '15m',
-    '30m',
-    '1H',
-    '4H',
-    '1D',
-  ];  @override
+  final List<String> timeframes = ['1m', '5m', '15m', '30m', '1H', '4H', '1D'];
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -470,10 +487,7 @@ Widget _buildMarketStructureCard() {
                 color: const Color(0xFF00C853),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
-                Icons.auto_graph,
-                color: Colors.black,
-              ),
+              child: const Icon(Icons.auto_graph, color: Colors.black),
             ),
             const SizedBox(width: 10),
             const Column(
@@ -481,17 +495,11 @@ Widget _buildMarketStructureCard() {
               children: [
                 Text(
                   'Forex AI',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 Text(
                   'Market Analyzer',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white54,
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.white54),
                 ),
               ],
             ),
@@ -525,14 +533,8 @@ Widget _buildMarketStructureCard() {
             selectedIcon: Icon(Icons.dashboard),
             label: 'Analyzer',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.show_chart),
-            label: 'Charts',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
+          NavigationDestination(icon: Icon(Icons.show_chart), label: 'Charts'),
+          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             label: 'Settings',
@@ -556,7 +558,9 @@ Widget _buildMarketStructureCard() {
     }
 
     return _buildAnalyzerPage();
-  }  Widget _buildAnalyzerPage() {
+  }
+
+  Widget _buildAnalyzerPage() {
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
@@ -600,7 +604,7 @@ Widget _buildMarketStructureCard() {
               setState(() {
                 selectedAsset = asset;
               });
-    _loadMarketData();
+              _loadMarketData();
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -610,9 +614,7 @@ Widget _buildMarketStructureCard() {
                     : const Color(0xFF111927),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: selected
-                      ? const Color(0xFF00C853)
-                      : Colors.white10,
+                  color: selected ? const Color(0xFF00C853) : Colors.white10,
                 ),
               ),
               alignment: Alignment.center,
@@ -650,10 +652,7 @@ Widget _buildMarketStructureCard() {
                 const SizedBox(height: 4),
                 const Text(
                   'Gold / Forex Market',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -682,31 +681,24 @@ Widget _buildMarketStructureCard() {
         ],
       ),
     );
-  }  Widget _buildSignalCard() {
+  }
+
+  Widget _buildSignalCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF063D27),
-            Color(0xFF0C171F),
-          ],
+          colors: [Color(0xFF063D27), Color(0xFF0C171F)],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF00C853),
-        ),
+        border: Border.all(color: const Color(0xFF00C853)),
       ),
       child: Column(
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.psychology,
-                color: Color(0xFF00C853),
-                size: 28,
-              ),
+              Icon(Icons.psychology, color: Color(0xFF00C853), size: 28),
               SizedBox(width: 10),
               Text(
                 'AI MARKET SIGNAL',
@@ -726,8 +718,8 @@ Widget _buildMarketStructureCard() {
               color: signal == 'BUY'
                   ? const Color(0xFF00E676)
                   : signal == 'SELL'
-                      ? Colors.redAccent
-                      : Colors.amber,
+                  ? Colors.redAccent
+                  : Colors.amber,
             ),
           ),
           const SizedBox(height: 4),
@@ -735,11 +727,9 @@ Widget _buildMarketStructureCard() {
             signal == 'BUY'
                 ? 'Bullish market structure detected'
                 : signal == 'SELL'
-                    ? 'Bearish market structure detected'
-                    : 'Market structure is unclear',
-            style: const TextStyle(
-              color: Colors.white70,
-            ),
+                ? 'Bearish market structure detected'
+                : 'Market structure is unclear',
+            style: const TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 18),
           Row(
@@ -751,60 +741,43 @@ Widget _buildMarketStructureCard() {
                   Icons.verified,
                 ),
               ),
-              Expanded(
-                child: _metric(
-                  'Risk',
-                  'Medium',
-                  Icons.warning_amber,
-                ),
-              ),
+              Expanded(child: _metric('Risk', 'Medium', Icons.warning_amber)),
               Expanded(
                 child: _metric(
                   'Trend',
                   signal == 'BUY'
                       ? 'Bullish'
                       : signal == 'SELL'
-                          ? 'Bearish'
-                          : 'Neutral',
+                      ? 'Bearish'
+                      : 'Neutral',
                   signal == 'BUY'
                       ? Icons.trending_up
                       : signal == 'SELL'
-                          ? Icons.trending_down
-                          : Icons.remove_circle_outline,
+                      ? Icons.trending_down
+                      : Icons.remove_circle_outline,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            signalDebug,
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ],
       ),
     );
   }
 
-  Widget _metric(
-    String title,
-    String value,
-    IconData icon,
-  ) {
+  Widget _metric(String title, String value, IconData icon) {
     return Column(
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: const Color(0xFF00C853),
-        ),
+        Icon(icon, size: 18, color: const Color(0xFF00C853)),
         const SizedBox(height: 5),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Colors.white54,
-          ),
+          style: const TextStyle(fontSize: 10, color: Colors.white54),
         ),
       ],
     );
@@ -813,22 +786,14 @@ Widget _buildMarketStructureCard() {
   Widget _buildChartCard() {
     return Container(
       decoration: _boxDecoration(),
-      padding: const EdgeInsets.fromLTRB(
-        12,
-        12,
-        12,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
       child: Column(
         children: [
           Row(
             children: [
               const Text(
                 'Price Chart',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               DropdownButtonHideUnderline(
@@ -838,12 +803,7 @@ Widget _buildMarketStructureCard() {
                   items: timeframes.map((time) {
                     return DropdownMenuItem<String>(
                       value: time,
-                      child: Text(
-                        time,
-                        style: const TextStyle(
-                          fontSize: 13,
-                        ),
-                      ),
+                      child: Text(time, style: const TextStyle(fontSize: 13)),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -868,16 +828,15 @@ Widget _buildMarketStructureCard() {
         ],
       ),
     );
-  }  Widget _buildAnalysisGrid() {
+  }
+
+  Widget _buildAnalysisGrid() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'AI Analysis',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         GridView.count(
@@ -903,7 +862,11 @@ Widget _buildMarketStructureCard() {
             _analysisCard(
               'Patterns',
               _candlestickLabel(),
-              _candlestickLabel() == 'Bullish' ? 'Bullish candle pattern detected' : _candlestickLabel() == 'Bearish' ? 'Bearish candle pattern detected' : 'No strong candle pattern',
+              _candlestickLabel() == 'Bullish'
+                  ? 'Bullish candle pattern detected'
+                  : _candlestickLabel() == 'Bearish'
+                  ? 'Bearish candle pattern detected'
+                  : 'No strong candle pattern',
               Icons.candlestick_chart,
             ),
             _analysisCard(
@@ -912,12 +875,11 @@ Widget _buildMarketStructureCard() {
               _liquidityLabel() == 'Bullish Sweep'
                   ? 'Sell-side liquidity swept'
                   : _liquidityLabel() == 'Bearish Sweep'
-                      ? 'Buy-side liquidity swept'
-                      : 'No liquidity sweep detected',
+                  ? 'Buy-side liquidity swept'
+                  : 'No liquidity sweep detected',
               Icons.water_drop,
             ),
             _analysisCard(
-
               'Momentum',
               'Strong',
               'Buying pressure rising',
@@ -941,18 +903,11 @@ Widget _buildMarketStructureCard() {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: const Color(0xFF00C853),
-            size: 22,
-          ),
+          Icon(icon, color: const Color(0xFF00C853), size: 22),
           const SizedBox(height: 8),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
           Text(
             value,
@@ -966,10 +921,7 @@ Widget _buildMarketStructureCard() {
           Expanded(
             child: Text(
               description,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white60,
-              ),
+              style: const TextStyle(fontSize: 10, color: Colors.white60),
             ),
           ),
         ],
@@ -987,17 +939,11 @@ Widget _buildMarketStructureCard() {
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.public,
-                color: Color(0xFF00C853),
-              ),
+              Icon(Icons.public, color: Color(0xFF00C853)),
               SizedBox(width: 8),
               Text(
                 'WORLD NEWS',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1024,11 +970,7 @@ Widget _buildMarketStructureCard() {
     );
   }
 
-  Widget _newsRow(
-    String title,
-    String category,
-    IconData icon,
-  ) {
+  Widget _newsRow(String title, String category, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -1040,11 +982,7 @@ Widget _buildMarketStructureCard() {
               color: const Color(0xFF111927),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFF00C853),
-            ),
+            child: Icon(icon, size: 19, color: const Color(0xFF00C853)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1061,23 +999,15 @@ Widget _buildMarketStructureCard() {
                 const SizedBox(height: 3),
                 Text(
                   category,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white54,
-                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.white54),
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: Colors.white38,
-          ),
+          const Icon(Icons.chevron_right, size: 18, color: Colors.white38),
         ],
       ),
     );
-
   }
 
   Widget _buildFinalAnalysisCard() {
@@ -1087,26 +1017,18 @@ Widget _buildMarketStructureCard() {
       decoration: BoxDecoration(
         color: const Color(0xFF101923),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF263445),
-        ),
+        border: Border.all(color: const Color(0xFF263445)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.auto_awesome,
-                color: Color(0xFF00E676),
-              ),
+              Icon(Icons.auto_awesome, color: Color(0xFF00E676)),
               SizedBox(width: 8),
               Text(
                 'FINAL AI ANALYSIS',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
@@ -1124,33 +1046,14 @@ Widget _buildMarketStructureCard() {
             'World news, market structure, ICT, SMC, '
             'price action and momentum are currently '
             'aligned with a bullish scenario.',
-            style: TextStyle(
-              color: Colors.white70,
-              height: 1.4,
-            ),
+            style: TextStyle(color: Colors.white70, height: 1.4),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(
-                child: _finalMetric(
-                  'Structure',
-                  'Bullish',
-                ),
-              ),
-              Expanded(
-                child: _finalMetric(
-
-                  'Momentum',
-                  'Strong',
-                ),
-              ),
-              Expanded(
-                child: _finalMetric(
-                  'Confidence',
-                  '87%',
-                ),
-              ),
+              Expanded(child: _finalMetric('Structure', 'Bullish')),
+              Expanded(child: _finalMetric('Momentum', 'Strong')),
+              Expanded(child: _finalMetric('Confidence', '87%')),
             ],
           ),
         ],
@@ -1158,19 +1061,13 @@ Widget _buildMarketStructureCard() {
     );
   }
 
-  Widget _finalMetric(
-    String title,
-    String value,
-  ) {
+  Widget _finalMetric(String title, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 10,
-          ),
+          style: const TextStyle(color: Colors.white54, fontSize: 10),
         ),
         const SizedBox(height: 3),
         Text(
@@ -1193,17 +1090,12 @@ Widget _buildMarketStructureCard() {
           children: [
             const Text(
               'Advanced Charts',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             const Text(
               'Multi-timeframe market analysis',
-              style: TextStyle(
-                color: Colors.white54,
-              ),
+              style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 14),
             Container(
@@ -1257,7 +1149,9 @@ Widget _buildMarketStructureCard() {
         ),
       ),
     );
-  }  Widget _buildHistoryPage() {
+  }
+
+  Widget _buildHistoryPage() {
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
@@ -1266,47 +1160,18 @@ Widget _buildMarketStructureCard() {
           children: [
             const Text(
               'Signal History',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             const Text(
               'Previous AI market signals',
-              style: TextStyle(
-                color: Colors.white54,
-              ),
+              style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 16),
-            _historyItem(
-              'XAU/USD',
-              'BUY',
-              '87%',
-              '15m',
-              'Today, 19:42',
-            ),
-            _historyItem(
-              'EUR/USD',
-              'SELL',
-              '81%',
-              '1H',
-              'Today, 18:25',
-            ),
-            _historyItem(
-              'GBP/USD',
-              'BUY',
-              '76%',
-              '30m',
-              'Today, 17:10',
-            ),
-            _historyItem(
-              'USD/JPY',
-              'SELL',
-              '73%',
-              '4H',
-              'Today, 15:48',
-            ),
+            _historyItem('XAU/USD', 'BUY', '87%', '15m', 'Today, 19:42'),
+            _historyItem('EUR/USD', 'SELL', '81%', '1H', 'Today, 18:25'),
+            _historyItem('GBP/USD', 'BUY', '76%', '30m', 'Today, 17:10'),
+            _historyItem('USD/JPY', 'SELL', '73%', '4H', 'Today, 15:48'),
           ],
         ),
       ),
@@ -1333,18 +1198,12 @@ Widget _buildMarketStructureCard() {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isBuy
-                  ? const Color(0xFF063D27)
-                  : const Color(0xFF3D1010),
+              color: isBuy ? const Color(0xFF063D27) : const Color(0xFF3D1010),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              isBuy
-                  ? Icons.trending_up
-                  : Icons.trending_down,
-              color: isBuy
-                  ? const Color(0xFF00E676)
-                  : Colors.redAccent,
+              isBuy ? Icons.trending_up : Icons.trending_down,
+              color: isBuy ? const Color(0xFF00E676) : Colors.redAccent,
             ),
           ),
           const SizedBox(width: 12),
@@ -1362,10 +1221,7 @@ Widget _buildMarketStructureCard() {
                 const SizedBox(height: 4),
                 Text(
                   '$time • $timeframe',
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 11,
-                  ),
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
               ],
             ),
@@ -1377,18 +1233,13 @@ Widget _buildMarketStructureCard() {
                 signal,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isBuy
-                      ? const Color(0xFF00E676)
-                      : Colors.redAccent,
+                  color: isBuy ? const Color(0xFF00E676) : Colors.redAccent,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 confidence,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
             ],
           ),
@@ -1406,17 +1257,12 @@ Widget _buildMarketStructureCard() {
           children: [
             const Text(
               'Settings',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             const Text(
               'Customize your AI analyzer',
-              style: TextStyle(
-                color: Colors.white54,
-              ),
+              style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 16),
             _settingsTile(
@@ -1453,18 +1299,12 @@ Widget _buildMarketStructureCard() {
                 children: [
                   const Text(
                     'Twelve Data API',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 6),
                   const Text(
                     'Connect live forex and gold market data',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -1493,10 +1333,7 @@ Widget _buildMarketStructureCard() {
                     const SizedBox(height: 8),
                     const Text(
                       'API key saved securely on this device.',
-                      style: TextStyle(
-                        color: Color(0xFF00C853),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0xFF00C853), fontSize: 12),
                     ),
                   ],
                 ],
@@ -1512,20 +1349,14 @@ Widget _buildMarketStructureCard() {
                 children: [
                   Text(
                     'Analysis Engine',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SizedBox(height: 10),
                   Text(
                     'World News → Price Action → '
                     'Chart Patterns → ICT → SMC → '
                     'Momentum → Final Signal',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      height: 1.5,
-                    ),
+                    style: TextStyle(color: Colors.white70, height: 1.5),
                   ),
                 ],
               ),
@@ -1534,20 +1365,14 @@ Widget _buildMarketStructureCard() {
             const Center(
               child: Text(
                 'Forex AI Analyzer',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.white38, fontSize: 12),
               ),
             ),
             const SizedBox(height: 4),
             const Center(
               child: Text(
                 'Version 1.0.0',
-                style: TextStyle(
-                  color: Colors.white24,
-                  fontSize: 10,
-                ),
+                style: TextStyle(color: Colors.white24, fontSize: 10),
               ),
             ),
           ],
@@ -1559,13 +1384,11 @@ Widget _buildMarketStructureCard() {
   Future<void> _saveApiKey() async {
     final key = _apiKeyController.text.trim();
 
-    if (key.isEmpty) {
-    }
+    if (key.isEmpty) {}
 
     await _apiKeyService.saveApiKey(key);
 
-    if (!mounted) {
-    }
+    if (!mounted) {}
 
     setState(() {
       _apiKeySaved = true;
@@ -1586,22 +1409,11 @@ Widget _buildMarketStructureCard() {
       child: SwitchListTile(
         value: enabled,
         onChanged: (value) {},
-        secondary: Icon(
-          icon,
-          color: const Color(0xFF00C853),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        secondary: Icon(icon, color: const Color(0xFF00C853)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
         ),
         activeThumbColor: const Color(0xFF00C853),
       ),
@@ -1612,9 +1424,7 @@ Widget _buildMarketStructureCard() {
     return BoxDecoration(
       color: const Color(0xFF101923),
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: const Color(0xFF1D2A3A),
-      ),
+      border: Border.all(color: const Color(0xFF1D2A3A)),
     );
   }
 }
@@ -1652,30 +1462,73 @@ class CandleChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+        if (size.width <= 60 || size.height <= 40) {
+      return;
+    }
     final gridPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
-    final candlePaint = Paint()
-      ..style = PaintingStyle.fill;
+    final candlePaint = Paint()..style = PaintingStyle.fill;
 
     final double chartWidth = size.width;
     final double chartHeight = size.height;
 
     const double leftPadding = 8;
     const double rightPadding = 45;
-    final List<double> chartPrices = candles.isNotEmpty ? candles.reversed.map((c) => double.tryParse(c["close"]?.toString() ?? "") ?? 0).where((p) => p > 0).toList() : prices;
+    final List<Map<String, dynamic>> chartCandles = [];
+
+    for (final candle in candles.reversed) {
+      final double close =
+          double.tryParse(candle["close"]?.toString() ?? "") ?? 0;
+      if (close <= 0) continue;
+
+      final double open =
+          double.tryParse(candle["open"]?.toString() ?? "") ?? close;
+      final double rawHigh =
+          double.tryParse(candle["high"]?.toString() ?? "") ??
+          math.max(open, close);
+      final double rawLow =
+          double.tryParse(candle["low"]?.toString() ?? "") ??
+          math.min(open, close);
+
+      chartCandles.add({
+        "open": open,
+        "close": close,
+        "high": math.max(rawHigh, math.max(open, close)),
+        "low": math.min(rawLow, math.min(open, close)),
+      });
+    }
+
+    if (chartCandles.isEmpty) {
+      for (int i = 0; i < prices.length; i++) {
+        final double close = prices[i];
+        final double open = i == 0 ? close : prices[i - 1];
+        chartCandles.add({
+          "open": open,
+          "close": close,
+          "high": math.max(open, close),
+          "low": math.min(open, close),
+        });
+      }
+    }
+
+    final List<double> chartPrices = chartCandles
+        .map((c) => c["close"] as double)
+        .toList();
+
     const double topPadding = 12;
     const double bottomPadding = 22;
 
-    final double usableWidth =
-        chartWidth - leftPadding - rightPadding;
+    final double usableWidth = chartWidth - leftPadding - rightPadding;
+    final double usableHeight = chartHeight - topPadding - bottomPadding;
 
-    final double usableHeight =
-        chartHeight - topPadding - bottomPadding;
-
-    double minPrice = candles.isNotEmpty ? candles.reversed.map((c) => double.tryParse(c["low"]?.toString() ?? "") ?? 0).where((p) => p > 0).reduce(math.min) : chartPrices.reduce(math.min);
-    double maxPrice = candles.isNotEmpty ? candles.reversed.map((c) => double.tryParse(c["high"]?.toString() ?? "") ?? 0).where((p) => p > 0).reduce(math.max) : chartPrices.reduce(math.max);
+    double minPrice = chartCandles
+        .map((c) => c["low"] as double)
+        .reduce(math.min);
+    double maxPrice = chartCandles
+        .map((c) => c["high"] as double)
+        .reduce(math.max);
 
     final double range = maxPrice - minPrice;
 
@@ -1685,28 +1538,20 @@ class CandleChartPainter extends CustomPainter {
     final double priceRange = maxPrice - minPrice;
 
     for (int i = 0; i <= 5; i++) {
-      final double y =
-          topPadding + usableHeight * i / 5;
+      final double y = topPadding + usableHeight * i / 5;
 
       canvas.drawLine(
         Offset(leftPadding, y),
-        Offset(
-          chartWidth - rightPadding,
-          y,
-        ),
+        Offset(chartWidth - rightPadding, y),
         gridPaint,
       );
 
-      final double price =
-          maxPrice - priceRange * i / 5;
+      final double price = maxPrice - priceRange * i / 5;
 
       final textPainter = TextPainter(
         text: TextSpan(
-          text: price.toStringAsFixed(1),
-          style: const TextStyle(
-            color: Colors.white38,
-            fontSize: 9,
-          ),
+          text: price.toStringAsFixed(price >= 1000 ? 2 : price >= 100 ? 3 : 4),
+          style: const TextStyle(color: Colors.white38, fontSize: 9),
         ),
         textDirection: TextDirection.ltr,
       );
@@ -1715,52 +1560,42 @@ class CandleChartPainter extends CustomPainter {
 
       textPainter.paint(
         canvas,
-        Offset(
-          chartWidth - rightPadding + 6,
-          y - textPainter.height / 2,
-        ),
+        Offset(chartWidth - rightPadding + 6, y - textPainter.height / 2),
       );
     }
 
     for (int i = 0; i <= 6; i++) {
-      final double x =
-          leftPadding + usableWidth * i / 6;
+      final double x = leftPadding + usableWidth * i / 6;
 
       canvas.drawLine(
         Offset(x, topPadding),
-        Offset(
-          x,
-          chartHeight - bottomPadding,
-        ),
+        Offset(x, chartHeight - bottomPadding),
         gridPaint,
       );
     }
 
-    final double candleStep =
-        usableWidth / chartPrices.length;
+    final double candleStep = usableWidth / chartPrices.length;
 
-    final double candleWidth =
-        candleStep * 0.58;
+    final double candleWidth = candleStep * 0.58;
 
     double priceToY(double price) {
-      return topPadding +
-          (maxPrice - price) /
-              priceRange *
-              usableHeight;
+      return topPadding + (maxPrice - price) / priceRange * usableHeight;
     }
 
     for (int i = 0; i < chartPrices.length; i++) {
       final double close = chartPrices[i];
 
-      final candle = candles.reversed.elementAt(i);
-      final double open = double.tryParse(candle["open"]?.toString() ?? "") ?? close;
-      final double high = double.tryParse(candle["high"]?.toString() ?? "") ?? math.max(open, close);
-      final double low = double.tryParse(candle["low"]?.toString() ?? "") ?? math.min(open, close);
+      final candle = chartCandles[i];
+      final double open =
+          double.tryParse(candle["open"]?.toString() ?? "") ?? close;
+      final double high =
+          double.tryParse(candle["high"]?.toString() ?? "") ??
+          math.max(open, close);
+      final double low =
+          double.tryParse(candle["low"]?.toString() ?? "") ??
+          math.min(open, close);
 
-      final double x =
-          leftPadding +
-          candleStep * i +
-          candleStep / 2;
+      final double x = leftPadding + candleStep * i + candleStep / 2;
 
       final double openY = priceToY(open);
       final double closeY = priceToY(close);
@@ -1773,20 +1608,13 @@ class CandleChartPainter extends CustomPainter {
           ? const Color(0xFF00C853)
           : const Color(0xFFFF5252);
 
-      canvas.drawLine(
-        Offset(x, highY),
-        Offset(x, lowY),
-        candlePaint,
-      );
+      canvas.drawLine(Offset(x, highY), Offset(x, lowY), candlePaint);
 
-      final double bodyTop =
-          math.min(openY, closeY);
+      final double bodyTop = math.min(openY, closeY);
 
-      final double bodyBottom =
-          math.max(openY, closeY);
+      final double bodyBottom = math.max(openY, closeY);
 
-      final double bodyHeight =
-          math.max(2, bodyBottom - bodyTop);
+      final double bodyHeight = math.max(2, bodyBottom - bodyTop);
 
       final Rect rect = Rect.fromLTWH(
         x - candleWidth / 2,
@@ -1795,10 +1623,7 @@ class CandleChartPainter extends CustomPainter {
         bodyHeight,
       );
 
-      canvas.drawRect(
-        rect,
-        candlePaint,
-      );
+      canvas.drawRect(rect, candlePaint);
     }
 
     final linePaint = Paint()
@@ -1809,10 +1634,7 @@ class CandleChartPainter extends CustomPainter {
     final Path path = Path();
 
     for (int i = 0; i < chartPrices.length; i++) {
-      final double x =
-          leftPadding +
-          candleStep * i +
-          candleStep / 2;
+      final double x = leftPadding + candleStep * i + candleStep / 2;
 
       final double y = priceToY(chartPrices[i]);
 
@@ -1835,16 +1657,13 @@ class CandleChartPainter extends CustomPainter {
 
     canvas.drawLine(
       Offset(leftPadding, currentY),
-      Offset(
-        chartWidth - rightPadding,
-        currentY,
-      ),
+      Offset(chartWidth - rightPadding, currentY),
       markerPaint,
     );
 
     final TextPainter currentText = TextPainter(
       text: TextSpan(
-        text: currentPrice.toStringAsFixed(1),
+        text: currentPrice.toStringAsFixed(currentPrice >= 1000 ? 2 : currentPrice >= 100 ? 3 : 4),
         style: const TextStyle(
           color: Color(0xFF00E676),
           fontSize: 10,
@@ -1858,17 +1677,12 @@ class CandleChartPainter extends CustomPainter {
 
     currentText.paint(
       canvas,
-      Offset(
-        chartWidth - rightPadding + 5,
-        currentY - currentText.height / 2,
-      ),
+      Offset(chartWidth - rightPadding + 5, currentY - currentText.height / 2),
     );
   }
 
   @override
-  bool shouldRepaint(
-    covariant CandleChartPainter oldDelegate,
-  ) {
-    return false;
+  bool shouldRepaint(covariant CandleChartPainter oldDelegate) {
+    return true;
   }
 }
