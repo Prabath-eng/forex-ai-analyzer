@@ -47,6 +47,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
   String signalDebug = "--";
+  List<Map<String, String>> signalBreakdown = [];
   String marketPrice = '--';
   String marketChange = '--';
   bool isMarketLoading = false;
@@ -271,9 +272,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       if (price >= liquidity["high"]! * 0.999) score -= 1;
     }
 
-    score += _liquiditySweepScore();
+    final liquidityLevelScore = score;
+    final sweepScore = _liquiditySweepScore();
+    score += sweepScore;
 
-    score += _candlestickScore();
+    final candleScore = _candlestickScore();
+    score += candleScore;
+    final beforeSrScore = score;
     final sr = _supportResistance();
     final currentPrice = double.tryParse(marketPrice);
     if (currentPrice != null && sr["support"]! > 0 && sr["resistance"]! > 0) {
@@ -284,9 +289,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         if (position > 0.75) score -= 1;
       }
     }
-    if (marketTrend == 'UPTREND') score += 2;
-    if (marketTrend == 'DOWNTREND') score -= 2;
+    final srScore = score - beforeSrScore;
 
+    int trendScore = 0;
+    if (marketTrend == 'UPTREND') trendScore = 2;
+    if (marketTrend == 'DOWNTREND') trendScore = -2;
+    score += trendScore;
+
+    int momentumScore = 0;
     final closes = liveCandles
         .map((c) => double.tryParse(c['close']?.toString() ?? ''))
         .whereType<double>()
@@ -298,10 +308,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       final older = closes.skip(5).take(5).toList();
       if (older.length >= 5) {
         final previous = older.reduce((a, b) => a + b) / older.length;
-        if (recent > previous) score += 1;
-        if (recent < previous) score -= 1;
+        if (recent > previous) momentumScore = 1;
+        if (recent < previous) momentumScore = -1;
       }
     }
+    score += momentumScore;
 
     // Require trend and ICT/SMC structure to agree.
     final trendAgreesBullish =
@@ -312,7 +323,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         marketStructure.trend == 'BEARISH';
 
     debugPrint(
-      'SIGNAL DEBUG: score=$score, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}',
+      'SIGNAL DEBUG: total=$score, liquidity=$liquidityLevelScore, sweep=$sweepScore, candle=$candleScore, SR=$srScore, trendScore=$trendScore, momentum=$momentumScore, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}',
     );
 
     String newSignal = 'NEUTRAL';
@@ -326,9 +337,81 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       confidence = 75;
     }
 
+    final decisionReason = newSignal == 'BUY'
+        ? 'BUY: bullish trend and structure agree; score >= 3'
+        : newSignal == 'SELL'
+        ? 'SELL: bearish trend and structure agree; score <= -3'
+        : marketTrend != 'UPTREND' && marketTrend != 'DOWNTREND'
+        ? 'NEUTRAL: market trend is $marketTrend; direction is not confirmed'
+        : marketStructure.trend != 'BULLISH' &&
+                marketStructure.trend != 'BEARISH'
+        ? 'NEUTRAL: market structure is not confirmed (${marketStructure.trend})'
+        : !trendAgreesBullish && !trendAgreesBearish
+        ? 'NEUTRAL: market trend and structure conflict'
+        : 'NEUTRAL: score threshold not reached ($score; BUY >= 3, SELL <= -3)';
+
+    final newBreakdown = <Map<String, String>>[
+      {
+        'name': 'Liquidity Level',
+        'score': '$liquidityLevelScore',
+        'reason': liquidityLevelScore > 0
+            ? 'Price near liquidity low: bullish point'
+            : liquidityLevelScore < 0
+            ? 'Price near liquidity high: bearish point'
+            : 'No liquidity-level point added',
+      },
+      {
+        'name': 'Liquidity Sweep',
+        'score': '$sweepScore',
+        'reason': sweepScore > 0
+            ? 'Bullish sweep contribution'
+            : sweepScore < 0
+            ? 'Bearish sweep contribution'
+            : 'No sweep contribution',
+      },
+      {
+        'name': 'Candlestick',
+        'score': '$candleScore',
+        'reason': candleScore > 0
+            ? 'Bullish candle contribution'
+            : candleScore < 0
+            ? 'Bearish candle contribution'
+            : 'No candle contribution',
+      },
+      {
+        'name': 'Support / Resistance',
+        'score': '$srScore',
+        'reason': srScore > 0
+            ? 'Price in lower range near support'
+            : srScore < 0
+            ? 'Price in upper range near resistance'
+            : 'No support/resistance point added',
+      },
+      {
+        'name': 'Market Trend',
+        'score': '$trendScore',
+        'reason': marketTrend,
+      },
+      {
+        'name': 'Momentum',
+        'score': '$momentumScore',
+        'reason': momentumScore > 0
+            ? 'Recent average closes are rising'
+            : momentumScore < 0
+            ? 'Recent average closes are falling'
+            : 'Momentum is neutral or insufficient',
+      },
+      {
+        'name': 'Final Decision',
+        'score': '$score',
+        'reason': decisionReason,
+      },
+    ];
+
     setState(() {
       signal = newSignal;
       signalConfidence = confidence;
+      signalBreakdown = newBreakdown;
       signalDebug =
           "Score: $score | Trend: $marketTrend | Structure: ${marketStructure.trend}";
     });
@@ -728,7 +811,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                 ? 'Bullish market structure detected'
                 : signal == 'SELL'
                 ? 'Bearish market structure detected'
-                : 'Market structure is unclear',
+                : marketStructure.trend == 'BULLISH'
+                ? 'Bullish structure; signal not confirmed'
+                : marketStructure.trend == 'BEARISH'
+                ? 'Bearish structure; signal not confirmed'
+                : 'Market direction is unclear',
             style: const TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 18),
@@ -763,6 +850,94 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           Text(
             signalDebug,
             style: const TextStyle(color: Colors.white54, fontSize: 11),
+          ),
+          const SizedBox(height: 18),
+          const Divider(color: Colors.white24),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'SIGNAL SCORE BREAKDOWN',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (signalBreakdown.isEmpty)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Waiting for sufficient candle data...',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            )
+          else
+            ...signalBreakdown.map((item) {
+              final itemScore =
+                  int.tryParse(item['score'] ?? '0') ?? 0;
+              final scoreColor = itemScore > 0
+                  ? const Color(0xFF00E676)
+                  : itemScore < 0
+                  ? Colors.redAccent
+                  : Colors.white54;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['name'] ?? 'Analysis',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item['reason'] ?? '',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      itemScore > 0 ? '+$itemScore' : '$itemScore',
+                      style: TextStyle(
+                        color: scoreColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          const SizedBox(height: 8),
+          const Text(
+            'Note: Confidence is an internal display score, not a verified win probability.',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 10,
+            ),
           ),
         ],
       ),
