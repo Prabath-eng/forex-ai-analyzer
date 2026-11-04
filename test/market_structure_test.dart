@@ -88,4 +88,81 @@ void main() {
     expect(result.trend, 'BULLISH');
     expect(result.choch, true);
   });
+
+
+  test('Confirms bullish CHOCH in a bearish structure', () {
+    final candles = [
+      {'high': 15.0, 'low': 10.0, 'close': 12.0},
+      {'high': 16.0, 'low': 11.0, 'close': 15.0},
+      {'high': 14.0, 'low': 8.0, 'close': 9.0},
+      {'high': 15.0, 'low': 9.0, 'close': 14.0},
+      {'high': 13.0, 'low': 6.0, 'close': 7.0},
+      {'high': 14.0, 'low': 7.0, 'close': 13.0},
+      {'high': 12.0, 'low': 5.0, 'close': 6.0},
+      {'high': 18.0, 'low': 11.0, 'close': 17.0},
+      {'high': 19.0, 'low': 12.0, 'close': 18.0},
+    ];
+
+    final result = analyzeMarketStructure(candles.reversed.toList());
+
+    expect(result.trend, 'BEARISH');
+    expect(result.choch, true);
+  });
+
+  test('Rejects bearish CHOCH when only one close breaks swing low', () {
+    final candles = [
+      {'high': 10.0, 'low': 5.0, 'close': 8.0},
+      {'high': 9.0, 'low': 4.0, 'close': 5.0},
+      {'high': 12.0, 'low': 6.0, 'close': 11.0},
+      {'high': 11.0, 'low': 5.0, 'close': 6.0},
+      {'high': 14.0, 'low': 7.0, 'close': 13.0},
+      {'high': 13.0, 'low': 6.0, 'close': 7.0},
+      {'high': 15.0, 'low': 8.0, 'close': 14.0},
+      {'high': 9.0, 'low': 2.0, 'close': 3.0},
+      {'high': 8.0, 'low': 1.0, 'close': 7.0},
+    ];
+
+    final result = analyzeMarketStructure(candles.reversed.toList());
+
+    expect(result.trend, 'BULLISH');
+    expect(result.choch, false);
+  });
+
+  test('Rejects bullish CHOCH when only one close breaks swing high', () {
+    final candles = [
+      {'high': 15.0, 'low': 10.0, 'close': 12.0},
+      {'high': 16.0, 'low': 11.0, 'close': 15.0},
+      {'high': 14.0, 'low': 8.0, 'close': 9.0},
+      {'high': 15.0, 'low': 9.0, 'close': 14.0},
+      {'high': 13.0, 'low': 6.0, 'close': 7.0},
+      {'high': 14.0, 'low': 7.0, 'close': 13.0},
+      {'high': 12.0, 'low': 5.0, 'close': 6.0},
+      {'high': 18.0, 'low': 11.0, 'close': 13.0},
+      {'high': 19.0, 'low': 12.0, 'close': 18.0},
+    ];
+
+    final result = analyzeMarketStructure(candles.reversed.toList());
+
+    expect(result.trend, 'BEARISH');
+    expect(result.choch, false);
+  });
+
+  test('Uses historical bullish trend when breakout candles distort swings', () {
+    final candles = [
+      {'high': 10.0, 'low': 5.0, 'close': 8.0},
+      {'high': 9.0, 'low': 4.0, 'close': 5.0},
+      {'high': 12.0, 'low': 6.0, 'close': 11.0},
+      {'high': 11.0, 'low': 5.0, 'close': 6.0},
+      {'high': 14.0, 'low': 7.0, 'close': 13.0},
+      {'high': 13.0, 'low': 6.0, 'close': 7.0},
+      {'high': 15.0, 'low': 8.0, 'close': 14.0},
+      {'high': 20.0, 'low': 2.0, 'close': 3.0},
+      {'high': 8.0, 'low': 3.5, 'close': 4.0},
+    ];
+
+    final result = analyzeMarketStructure(candles.reversed.toList());
+
+    expect(result.trend, 'BULLISH');
+    expect(result.choch, true);
+  });
 }
