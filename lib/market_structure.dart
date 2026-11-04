@@ -24,7 +24,7 @@ MarketStructure analyzeMarketStructure(
 
   if (candles.length < 7) return neutral;
 
-  // Candles are ordered newest first.
+  // Candles must be ordered newest first.
   final bars = <Map<String, double>>[];
 
   for (final candle in candles) {
@@ -54,18 +54,12 @@ MarketStructure analyzeMarketStructure(
 
     if (high > bars[i - 1]['high']! &&
         high > bars[i + 1]['high']!) {
-      swingHighs.add({
-        'level': high,
-        'index': i.toDouble(),
-      });
+      swingHighs.add({'level': high, 'index': i.toDouble()});
     }
 
     if (low < bars[i - 1]['low']! &&
         low < bars[i + 1]['low']!) {
-      swingLows.add({
-        'level': low,
-        'index': i.toDouble(),
-      });
+      swingLows.add({'level': low, 'index': i.toDouble()});
     }
   }
 
@@ -73,52 +67,54 @@ MarketStructure analyzeMarketStructure(
     return neutral;
   }
 
-  final previousHigh = swingHighs[swingHighs.length - 2];
-  final latestHigh = swingHighs.last;
-  final previousLow = swingLows[swingLows.length - 2];
-  final latestLow = swingLows.last;
-
-  final oldHigh = previousHigh['level']!;
-  final newHigh = latestHigh['level']!;
-  final oldLow = previousLow['level']!;
-  final newLow = latestLow['level']!;
+  final previousHigh = swingHighs[swingHighs.length - 2]['level']!;
+  final latestHigh = swingHighs.last['level']!;
+  final previousLow = swingLows[swingLows.length - 2]['level']!;
+  final latestLow = swingLows.last['level']!;
 
   String structure = 'NONE';
   String trend = 'NEUTRAL';
 
-  if (newHigh > oldHigh && newLow > oldLow) {
+  if (latestHigh > previousHigh && latestLow > previousLow) {
     structure = 'HH / HL';
     trend = 'BULLISH';
-  } else if (newHigh < oldHigh && newLow < oldLow) {
+  } else if (latestHigh < previousHigh && latestLow < previousLow) {
     structure = 'LH / LL';
     trend = 'BEARISH';
   }
 
-  bool wasBrokenAfter(Map<String, double> swing, String field) {
+  // Check two consecutive closes occurring AFTER the swing candle.
+  // bars are newest first, so smaller indices are newer candles.
+  bool twoClosesBeyond(
+    Map<String, double> swing,
+    bool above,
+  ) {
     final pivotIndex = swing['index']!.toInt();
+
+    // The latest two candles must both be newer than the swing.
+    if (pivotIndex < 2) return false;
+
+    final latestClose = bars[0]['close']!;
+    final previousClose = bars[1]['close']!;
     final level = swing['level']!;
 
-    // Search candles newer than this swing point.
-    for (int i = pivotIndex - 1; i >= 0; i--) {
-      if (field == 'high' && bars[i]['close']! > level) {
-        return true;
-      }
-      if (field == 'low' && bars[i]['close']! < level) {
-        return true;
-      }
+    if (above) {
+      return previousClose > level && latestClose > level;
     }
-    return false;
+
+    return previousClose < level && latestClose < level;
   }
 
-  final bullishBreak = wasBrokenAfter(previousHigh, 'high');
-  final bearishBreak = wasBrokenAfter(previousLow, 'low');
+  bool bos = false;
+  bool choch = false;
 
-  final bos = (trend == 'BULLISH' && bullishBreak) ||
-      (trend == 'BEARISH' && bearishBreak);
-
-  // Do not claim CHOCH without a known prior structure direction.
-  final choch = (trend == 'BULLISH' && bearishBreak) ||
-      (trend == 'BEARISH' && bullishBreak);
+  if (trend == 'BULLISH') {
+    bos = twoClosesBeyond(swingHighs.last, true);
+    choch = twoClosesBeyond(swingLows.last, false);
+  } else if (trend == 'BEARISH') {
+    bos = twoClosesBeyond(swingLows.last, false);
+    choch = twoClosesBeyond(swingHighs.last, true);
+  }
 
   return MarketStructure(
     structure: structure,
