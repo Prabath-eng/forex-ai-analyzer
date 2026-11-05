@@ -129,7 +129,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   }
 
   Future<void> _loadMarketData() async {
-    final cached = _quoteCache[selectedAsset];
+    final requestedAsset = selectedAsset;
+    final cached = _quoteCache[requestedAsset];
     if (cached != null) {
       setState(() {
         marketPrice = cached['price'] ?? '--';
@@ -146,7 +147,9 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               'close': cached['price'],
               'percent_change': cached['change']?.replaceAll('%', ''),
             }
-          : await _marketDataService.getQuote(selectedAsset);
+          : await _marketDataService.getQuote(requestedAsset);
+
+      if (!mounted || selectedAsset != requestedAsset) return;
 
       final price =
           double.tryParse(
@@ -159,7 +162,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               ?.toStringAsFixed(2) ??
           '--';
 
-      _quoteCache[selectedAsset] = {
+      _quoteCache[requestedAsset] = {
         'price': price,
         'change': change == '--' ? '--' : '$change%',
       };
@@ -172,13 +175,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       });
 
       try {
-        final candles = _candleCache[selectedAsset] != null
-            ? {'values': _candleCache[selectedAsset]}
+        final candles = _candleCache[requestedAsset] != null
+            ? {'values': _candleCache[requestedAsset]}
             : await _marketDataService.getTimeSeries(
-                selectedAsset,
+                requestedAsset,
                 interval: '15min',
                 outputsize: 100,
               );
+
+        if (!mounted || selectedAsset != requestedAsset) return;
 
         final values = candles['values'];
 
@@ -193,7 +198,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               a["datetime"]?.toString() ?? "",
             ),
           );
-          _candleCache[selectedAsset] = liveCandles;
+          _candleCache[requestedAsset] = liveCandles;
           _updateMarketStructure();
           _calculateMarketTrend();
 
@@ -207,7 +212,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         debugPrint('Candlestick request skipped: $e');
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || selectedAsset != requestedAsset) return;
 
       setState(() {
         marketPrice = 'API Error';
