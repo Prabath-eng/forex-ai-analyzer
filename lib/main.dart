@@ -315,10 +315,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     score += momentumScore;
 
     // Require trend and ICT/SMC structure to agree.
+    // Block BUY / SELL while a CHOCH reversal is confirmed.
+    final chochActive = marketStructure.choch;
+
     final trendAgreesBullish =
+        !chochActive &&
         marketTrend == 'UPTREND' &&
         marketStructure.trend == 'BULLISH';
     final trendAgreesBearish =
+        !chochActive &&
         marketTrend == 'DOWNTREND' &&
         marketStructure.trend == 'BEARISH';
 
@@ -341,10 +346,12 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         ? 'BUY: bullish trend and structure agree; score >= 3'
         : newSignal == 'SELL'
         ? 'SELL: bearish trend and structure agree; score <= -3'
+        : chochActive
+        ? 'NEUTRAL: CHOCH reversal detected; wait for trend confirmation'
         : marketTrend != 'UPTREND' && marketTrend != 'DOWNTREND'
         ? 'NEUTRAL: market trend is $marketTrend; direction is not confirmed'
         : marketStructure.trend != 'BULLISH' &&
-                marketStructure.trend != 'BEARISH'
+              marketStructure.trend != 'BEARISH'
         ? 'NEUTRAL: market structure is not confirmed (${marketStructure.trend})'
         : !trendAgreesBullish && !trendAgreesBearish
         ? 'NEUTRAL: market trend and structure conflict'
@@ -387,11 +394,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ? 'Price in upper range near resistance'
             : 'No support/resistance point added',
       },
-      {
-        'name': 'Market Trend',
-        'score': '$trendScore',
-        'reason': marketTrend,
-      },
+      {'name': 'Market Trend', 'score': '$trendScore', 'reason': marketTrend},
       {
         'name': 'Momentum',
         'score': '$momentumScore',
@@ -401,11 +404,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ? 'Recent average closes are falling'
             : 'Momentum is neutral or insufficient',
       },
-      {
-        'name': 'Final Decision',
-        'score': '$score',
-        'reason': decisionReason,
-      },
+      {'name': 'Final Decision', 'score': '$score', 'reason': decisionReason},
     ];
 
     setState(() {
@@ -876,8 +875,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             )
           else
             ...signalBreakdown.map((item) {
-              final itemScore =
-                  int.tryParse(item['score'] ?? '0') ?? 0;
+              final itemScore = int.tryParse(item['score'] ?? '0') ?? 0;
               final scoreColor = itemScore > 0
                   ? const Color(0xFF00E676)
                   : itemScore < 0
@@ -934,10 +932,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           const SizedBox(height: 8),
           const Text(
             'Note: Confidence is an internal display score, not a verified win probability.',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 10,
-            ),
+            style: TextStyle(color: Colors.white54, fontSize: 10),
           ),
         ],
       ),
@@ -1637,7 +1632,7 @@ class CandleChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-        if (size.width <= 60 || size.height <= 40) {
+    if (size.width <= 60 || size.height <= 40) {
       return;
     }
     final gridPaint = Paint()
@@ -1725,7 +1720,13 @@ class CandleChartPainter extends CustomPainter {
 
       final textPainter = TextPainter(
         text: TextSpan(
-          text: price.toStringAsFixed(price >= 1000 ? 2 : price >= 100 ? 3 : 4),
+          text: price.toStringAsFixed(
+            price >= 1000
+                ? 2
+                : price >= 100
+                ? 3
+                : 4,
+          ),
           style: const TextStyle(color: Colors.white38, fontSize: 9),
         ),
         textDirection: TextDirection.ltr,
@@ -1838,7 +1839,13 @@ class CandleChartPainter extends CustomPainter {
 
     final TextPainter currentText = TextPainter(
       text: TextSpan(
-        text: currentPrice.toStringAsFixed(currentPrice >= 1000 ? 2 : currentPrice >= 100 ? 3 : 4),
+        text: currentPrice.toStringAsFixed(
+          currentPrice >= 1000
+              ? 2
+              : currentPrice >= 100
+              ? 3
+              : 4,
+        ),
         style: const TextStyle(
           color: Color(0xFF00E676),
           fontSize: 10,
