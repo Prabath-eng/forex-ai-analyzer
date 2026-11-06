@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'market_structure.dart';
+import 'stateful_market_structure.dart';
 import 'services/api_key_service.dart';
 import 'services/market_data_service.dart';
 
@@ -59,8 +60,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     bos: false,
     choch: false,
   );
+  final StatefulMarketStructure _statefulMarketStructure =
+      StatefulMarketStructure();
+
   void _updateMarketStructure() {
-    marketStructure = analyzeMarketStructure(liveCandles);
+    marketStructure = _statefulMarketStructure.update(
+      asset: selectedAsset,
+      candles: liveCandles,
+    );
   }
 
   final Map<String, List<Map<String, dynamic>>> _candleCache = {};
