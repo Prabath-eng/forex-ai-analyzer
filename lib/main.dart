@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'fvg_detector.dart';
+import 'order_block_detector.dart';
+
 import 'market_structure.dart';
 import 'stateful_market_structure.dart';
 import 'services/api_key_service.dart';
@@ -112,6 +115,120 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             'CHOCH: ${marketStructure.choch ? "YES" : "NO"}',
             style: const TextStyle(color: Colors.white),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFvgCard() {
+    final gaps = detectFairValueGaps(liveCandles);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'FAIR VALUE GAPS (FVG)',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (gaps.isEmpty)
+            const Text(
+              'No FVG detected',
+              style: TextStyle(color: Colors.white70),
+            ),
+          for (final gap in gaps.take(3))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${gap.direction} FVG',
+                    style: TextStyle(
+                      color: gap.direction == 'BULLISH'
+                          ? Colors.greenAccent
+                          : Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Zone: ${gap.bottom} - ${gap.top}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    'Size: ${gap.gapSize} | ${gap.filled ? "FILLED" : "UNFILLED"}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderBlockCard() {
+    final blocks = detectOrderBlocks(liveCandles);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ORDER BLOCKS',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (blocks.isEmpty)
+            const Text(
+              'No Order Block detected',
+              style: TextStyle(color: Colors.white70),
+            ),
+          for (final block in blocks.take(3))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${block.direction} ORDER BLOCK',
+                    style: TextStyle(
+                      color: block.direction == 'BULLISH'
+                          ? Colors.greenAccent
+                          : Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Zone: ${block.bottom} - ${block.top}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    '${block.confirmed ? "CONFIRMED" : "UNCONFIRMED"} | ${block.filled ? "FILLED" : "UNFILLED"}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -670,6 +787,10 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             _buildChartCard(),
             const SizedBox(height: 14),
             _buildMarketStructureCard(),
+            const SizedBox(height: 14),
+            _buildFvgCard(),
+            const SizedBox(height: 14),
+            _buildOrderBlockCard(),
             const SizedBox(height: 14),
             _buildAnalysisGrid(),
             const SizedBox(height: 14),
