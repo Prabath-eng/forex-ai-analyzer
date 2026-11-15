@@ -1125,7 +1125,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             height: 260,
             width: double.infinity,
             child: CustomPaint(
-              painter: CandleChartPainter(candles: liveCandles),
+              painter: CandleChartPainter(
+                candles: liveCandles,
+                fvgGaps: detectFairValueGaps(liveCandles),
+                orderBlocks: detectOrderBlocks(liveCandles),
+              ),
             ),
           ),
         ],
@@ -1442,7 +1446,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     height: 330,
                     width: double.infinity,
                     child: CustomPaint(
-                      painter: CandleChartPainter(candles: liveCandles),
+                      painter: CandleChartPainter(
+                        candles: liveCandles,
+                        fvgGaps: detectFairValueGaps(liveCandles),
+                        orderBlocks: detectOrderBlocks(liveCandles),
+                      ),
                     ),
                   ),
                 ],
@@ -1734,8 +1742,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
 class CandleChartPainter extends CustomPainter {
   final List<Map<String, dynamic>> candles;
+  final List<FairValueGap> fvgGaps;
+  final List<OrderBlock> orderBlocks;
 
-  CandleChartPainter({required this.candles});
+  CandleChartPainter({
+    required this.candles,
+    required this.fvgGaps,
+    required this.orderBlocks,
+  });
   final List<double> prices = [
     2640,
     2643,
@@ -1889,6 +1903,32 @@ class CandleChartPainter extends CustomPainter {
 
     double priceToY(double price) {
       return topPadding + (maxPrice - price) / priceRange * usableHeight;
+    }
+
+    for (final gap in fvgGaps.where((g) => !g.filled)) {
+      final top = priceToY(gap.top);
+      final bottom = priceToY(gap.bottom);
+      final paint = Paint()
+        ..color = (gap.direction == "BULLISH" ? Colors.green : Colors.red)
+            .withValues(alpha: 0.16)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(
+        Rect.fromLTRB(leftPadding, top, chartWidth - rightPadding, bottom),
+        paint,
+      );
+    }
+
+    for (final block in orderBlocks.where((b) => !b.filled && b.confirmed)) {
+      final top = priceToY(block.top);
+      final bottom = priceToY(block.bottom);
+      final paint = Paint()
+        ..color = (block.direction == "BULLISH" ? Colors.green : Colors.red)
+            .withValues(alpha: 0.24)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(
+        Rect.fromLTRB(leftPadding, top, chartWidth - rightPadding, bottom),
+        paint,
+      );
     }
 
     for (int i = 0; i < chartPrices.length; i++) {
