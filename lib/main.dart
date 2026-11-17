@@ -1916,6 +1916,20 @@ class CandleChartPainter extends CustomPainter {
         Rect.fromLTRB(leftPadding, top, chartWidth - rightPadding, bottom),
         paint,
       );
+      final label = TextPainter(
+        text: TextSpan(
+          text: gap.direction == "BULLISH" ? "BULLISH FVG" : "BEARISH FVG",
+          style: TextStyle(
+            color: gap.direction == "BULLISH"
+                ? Colors.greenAccent
+                : Colors.redAccent,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      label.paint(canvas, Offset(leftPadding + 4, top + 2));
     }
 
     for (final block in orderBlocks.where((b) => !b.filled && b.confirmed)) {
@@ -1929,6 +1943,20 @@ class CandleChartPainter extends CustomPainter {
         Rect.fromLTRB(leftPadding, top, chartWidth - rightPadding, bottom),
         paint,
       );
+      final label = TextPainter(
+        text: TextSpan(
+          text: block.direction == "BULLISH" ? "BULLISH OB" : "BEARISH OB",
+          style: TextStyle(
+            color: block.direction == "BULLISH"
+                ? Colors.greenAccent
+                : Colors.redAccent,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      label.paint(canvas, Offset(leftPadding + 4, top + 2));
     }
 
     for (int i = 0; i < chartPrices.length; i++) {
