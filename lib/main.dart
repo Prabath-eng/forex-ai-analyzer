@@ -7,6 +7,7 @@ import 'order_block_detector.dart';
 
 import 'market_structure.dart';
 import 'stateful_market_structure.dart';
+import 'backtesting_engine.dart';
 import 'services/api_key_service.dart';
 import 'services/market_data_service.dart';
 
@@ -47,6 +48,12 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   String selectedAsset = 'XAU/USD';
   String selectedTimeframe = '15m';
   int bottomIndex = 0;
+  BacktestResult? backtestResult;
+  bool isBacktesting = false;
+  String? backtestMessage;
+  String? backtestAsset;
+  String? backtestTimeframe;
+  int backtestCandleCount = 0;
 
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
@@ -96,6 +103,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ),
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isBacktesting ? null : _runBacktest,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+            ),
+          ),
           Text(
             'Structure: ${marketStructure.structure}',
             style: const TextStyle(color: Colors.white),
@@ -141,6 +156,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ),
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isBacktesting ? null : _runBacktest,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+            ),
+          ),
           if (gaps.isEmpty)
             const Text(
               'No FVG detected',
@@ -198,6 +221,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ),
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isBacktesting ? null : _runBacktest,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+            ),
+          ),
           if (blocks.isEmpty)
             const Text(
               'No Order Block detected',
@@ -344,6 +375,30 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         isMarketLoading = false;
       });
     }
+  }
+
+  void _runBacktest() {
+    final candles = _candleCache[selectedAsset] ?? liveCandles;
+    if (candles.length < 11) {
+      setState(() => backtestMessage = "Need at least 11 candles");
+      return;
+    }
+    setState(() {
+      isBacktesting = true;
+      backtestMessage = null;
+    });
+    final result = BacktestingEngine().run(
+      asset: selectedAsset,
+      candles: candles,
+    );
+    if (!mounted) return;
+    setState(() {
+      backtestResult = result;
+      backtestAsset = selectedAsset;
+      backtestTimeframe = selectedTimeframe;
+      backtestCandleCount = candles.length;
+      isBacktesting = false;
+    });
   }
 
   void _calculateMarketTrend() {
@@ -747,8 +802,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           NavigationDestination(icon: Icon(Icons.show_chart), label: 'Charts'),
           NavigationDestination(icon: Icon(Icons.history), label: 'History'),
           NavigationDestination(
+            icon: Icon(Icons.assessment_outlined),
+            selectedIcon: Icon(Icons.assessment),
+            label: "Backtest",
+          ),
+          NavigationDestination(
             icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
+            label: "Settings",
           ),
         ],
       ),
@@ -764,7 +824,9 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       return _buildHistoryPage();
     }
 
-    if (bottomIndex == 3) {
+    if (bottomIndex == 3) return _buildBacktestingPage();
+
+    if (bottomIndex == 4) {
       return _buildSettingsPage();
     }
 
@@ -780,8 +842,24 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           children: [
             _buildAssetSelector(),
             const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isBacktesting ? null : _runBacktest,
+                icon: const Icon(Icons.play_arrow),
+                label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+              ),
+            ),
             _buildMarketHeader(),
             const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isBacktesting ? null : _runBacktest,
+                icon: const Icon(Icons.play_arrow),
+                label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+              ),
+            ),
             _buildSignalCard(),
             const SizedBox(height: 14),
             _buildChartCard(),
@@ -979,6 +1057,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ],
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isBacktesting ? null : _runBacktest,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+            ),
+          ),
           Text(
             signalDebug,
             style: const TextStyle(color: Colors.white54, fontSize: 11),
@@ -1255,6 +1341,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ],
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isBacktesting ? null : _runBacktest,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+            ),
+          ),
           _newsRow(
             'US Dollar weakens as market expects rate cuts',
             'USD',
@@ -1443,6 +1537,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isBacktesting ? null : _runBacktest,
+                      icon: const Icon(Icons.play_arrow),
+                      label: Text(
+                        isBacktesting ? "Running..." : "RUN BACKTEST",
+                      ),
+                    ),
+                  ),
+                  SizedBox(
                     height: 330,
                     width: double.infinity,
                     child: CustomPaint(
@@ -1618,6 +1722,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     style: TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                   const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isBacktesting ? null : _runBacktest,
+                      icon: const Icon(Icons.play_arrow),
+                      label: Text(
+                        isBacktesting ? "Running..." : "RUN BACKTEST",
+                      ),
+                    ),
+                  ),
                   TextField(
                     controller: _apiKeyController,
                     obscureText: true,
@@ -1728,6 +1842,82 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         ),
         activeThumbColor: const Color(0xFF00C853),
       ),
+    );
+  }
+
+  Widget _buildBacktestingPage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "BACKTESTING",
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isBacktesting ? null : _runBacktest,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
+            ),
+          ),
+          if (backtestMessage != null)
+            Text(
+              backtestMessage!,
+              style: const TextStyle(color: Colors.orangeAccent),
+            ),
+          if (backtestResult != null) ...[
+            const SizedBox(height: 16),
+            _backtestMetric("Asset", backtestAsset ?? "--"),
+            _backtestMetric("Timeframe", backtestTimeframe ?? "--"),
+            _backtestMetric("Candles Used", "$backtestCandleCount"),
+            const SizedBox(height: 20),
+            const Text(
+              "TRADE HISTORY",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            ...backtestResult!.trades.map(_backtestTradeCard),
+            _backtestMetric("Total Trades", "${backtestResult!.totalTrades}"),
+            _backtestMetric("Wins", "${backtestResult!.wins}"),
+            _backtestMetric("Losses", "${backtestResult!.losses}"),
+            _backtestMetric(
+              "Win Rate",
+              "${backtestResult!.winRate.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Net Profit",
+              "${backtestResult!.netProfitPercent.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Max Drawdown",
+              "${backtestResult!.maxDrawdownPercent.toStringAsFixed(2)}%",
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _backtestTradeCard(BacktestTrade trade) {
+    return Card(
+      color: const Color(0xFF101923),
+      child: ListTile(
+        title: Text("${trade.direction} - ${trade.result ?? "OPEN"}"),
+        subtitle: Text(
+          "Entry: ${trade.entryPrice} | SL: ${trade.stopLoss} | TP: ${trade.takeProfit}\nExit: ${trade.exitPrice ?? "--"}",
+        ),
+        trailing: Text("${trade.profitPercent?.toStringAsFixed(2) ?? "--"}%"),
+      ),
+    );
+  }
+
+  Widget _backtestMetric(String label, String value) {
+    return Card(
+      color: const Color(0xFF101923),
+      child: ListTile(title: Text(label), trailing: Text(value)),
     );
   }
 
