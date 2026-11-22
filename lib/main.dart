@@ -57,6 +57,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
+  double? entryPrice;
+  double? stopLossPrice;
+  double? takeProfitPrice;
+  final double stopLossPercent = 1.0;
+  final double takeProfitPercent = 2.0;
   String signalDebug = "--";
   List<Map<String, String>> signalBreakdown = [];
   String marketPrice = '--';
@@ -442,6 +447,9 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       setState(() {
         signal = 'NEUTRAL';
         signalConfidence = 50;
+        entryPrice = null;
+        stopLossPrice = null;
+        takeProfitPrice = null;
       });
       return;
     }
@@ -591,7 +599,25 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       {'name': 'Final Decision', 'score': '$score', 'reason': decisionReason},
     ];
 
+    final entry = double.tryParse(marketPrice);
+    final calculatedEntry = newSignal != 'NEUTRAL' && entry != null && entry > 0
+        ? entry
+        : null;
+    final calculatedStopLoss = calculatedEntry == null
+        ? null
+        : newSignal == 'BUY'
+        ? calculatedEntry * (1 - stopLossPercent / 100)
+        : calculatedEntry * (1 + stopLossPercent / 100);
+    final calculatedTakeProfit = calculatedEntry == null
+        ? null
+        : newSignal == 'BUY'
+        ? calculatedEntry * (1 + takeProfitPercent / 100)
+        : calculatedEntry * (1 - takeProfitPercent / 100);
+
     setState(() {
+      entryPrice = calculatedEntry;
+      stopLossPrice = calculatedStopLoss;
+      takeProfitPrice = calculatedTakeProfit;
       signal = newSignal;
       signalConfidence = confidence;
       signalBreakdown = newBreakdown;
@@ -1069,6 +1095,56 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             signalDebug,
             style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
+          const SizedBox(height: 12),
+          Card(
+            color: const Color(0xFF101923),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'RISK MANAGEMENT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (entryPrice == null ||
+                      stopLossPrice == null ||
+                      takeProfitPrice == null)
+                    const Text(
+                      'Waiting for a valid BUY / SELL signal...',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    )
+                  else ...[
+                    _riskRow('Entry Price', entryPrice!),
+                    _riskRow('Stop Loss', stopLossPrice!),
+                    _riskRow('Take Profit', takeProfitPrice!),
+                    const Divider(color: Colors.white24),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Risk / Reward',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        Text(
+                          '1 : 2',
+                          style: TextStyle(
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 18),
           const Divider(color: Colors.white24),
           const Align(
@@ -1152,6 +1228,27 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           const Text(
             'Note: Confidence is an internal display score, not a verified win probability.',
             style: TextStyle(color: Colors.white54, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _riskRow(String label, double price) {
+    final decimals = selectedAsset.startsWith('XAU') ? 2 : 5;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70)),
+          Text(
+            price.toStringAsFixed(decimals),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
