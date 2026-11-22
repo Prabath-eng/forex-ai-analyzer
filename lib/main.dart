@@ -8,6 +8,7 @@ import 'order_block_detector.dart';
 import 'market_structure.dart';
 import 'stateful_market_structure.dart';
 import 'backtesting_engine.dart';
+import 'atr_calculator.dart';
 import 'services/api_key_service.dart';
 import 'services/market_data_service.dart';
 
@@ -45,6 +46,7 @@ class AnalyzerHome extends StatefulWidget {
 }
 
 class _AnalyzerHomeState extends State<AnalyzerHome> {
+  final AtrCalculator _atrCalculator = AtrCalculator();
   String selectedAsset = 'XAU/USD';
   String selectedTimeframe = '15m';
   int bottomIndex = 0;
@@ -603,16 +605,26 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     final calculatedEntry = newSignal != 'NEUTRAL' && entry != null && entry > 0
         ? entry
         : null;
+    final atr = _atrCalculator.calculate(liveCandles);
+    final atrRisk = calculatedEntry != null && atr != null
+        ? _atrCalculator.calculateRisk(
+            direction: newSignal,
+            entryPrice: calculatedEntry,
+            atr: atr,
+          )
+        : null;
     final calculatedStopLoss = calculatedEntry == null
         ? null
-        : newSignal == 'BUY'
-        ? calculatedEntry * (1 - stopLossPercent / 100)
-        : calculatedEntry * (1 + stopLossPercent / 100);
+        : atrRisk?["stopLoss"] ??
+              (newSignal == 'BUY'
+                  ? calculatedEntry * (1 - stopLossPercent / 100)
+                  : calculatedEntry * (1 + stopLossPercent / 100));
     final calculatedTakeProfit = calculatedEntry == null
         ? null
-        : newSignal == 'BUY'
-        ? calculatedEntry * (1 + takeProfitPercent / 100)
-        : calculatedEntry * (1 - takeProfitPercent / 100);
+        : atrRisk?["takeProfit"] ??
+              (newSignal == 'BUY'
+                  ? calculatedEntry * (1 + takeProfitPercent / 100)
+                  : calculatedEntry * (1 - takeProfitPercent / 100));
 
     setState(() {
       entryPrice = calculatedEntry;
