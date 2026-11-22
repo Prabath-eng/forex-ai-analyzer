@@ -2122,12 +2122,17 @@ class CandleChartPainter extends CustomPainter {
       label.paint(canvas, Offset(leftPadding + 4, top + 2));
     }
 
-    for (final block in orderBlocks.where((b) => !b.filled && b.confirmed)) {
+    for (final block in orderBlocks.where(
+      (b) => !b.filled && !b.invalidated && b.confirmed,
+    )) {
       final top = priceToY(block.top);
       final bottom = priceToY(block.bottom);
+      final isBullish = block.direction == "BULLISH";
+      final statusLabel = block.mitigated ? "MITIGATED" : "FRESH";
       final paint = Paint()
-        ..color = (block.direction == "BULLISH" ? Colors.green : Colors.red)
-            .withValues(alpha: 0.24)
+        ..color = (isBullish ? Colors.green : Colors.red).withValues(
+          alpha: block.mitigated ? 0.12 : 0.24,
+        )
         ..style = PaintingStyle.fill;
       canvas.drawRect(
         Rect.fromLTRB(leftPadding, top, chartWidth - rightPadding, bottom),
@@ -2135,11 +2140,9 @@ class CandleChartPainter extends CustomPainter {
       );
       final label = TextPainter(
         text: TextSpan(
-          text: block.direction == "BULLISH" ? "BULLISH OB" : "BEARISH OB",
+          text: "$statusLabel ${isBullish ? "BULLISH" : "BEARISH"} OB",
           style: TextStyle(
-            color: block.direction == "BULLISH"
-                ? Colors.greenAccent
-                : Colors.redAccent,
+            color: isBullish ? Colors.greenAccent : Colors.redAccent,
             fontSize: 9,
             fontWeight: FontWeight.bold,
           ),

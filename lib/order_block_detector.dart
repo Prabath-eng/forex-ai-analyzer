@@ -4,6 +4,15 @@ class OrderBlock {
   final double bottom;
   final bool filled;
   final bool confirmed;
+  final bool mitigated;
+  final bool invalidated;
+
+  String get status {
+    if (invalidated) return 'INVALIDATED';
+    if (filled) return 'FILLED';
+    if (mitigated) return 'MITIGATED';
+    return 'FRESH';
+  }
 
   const OrderBlock({
     required this.direction,
@@ -11,6 +20,8 @@ class OrderBlock {
     required this.bottom,
     required this.filled,
     required this.confirmed,
+    this.mitigated = false,
+    this.invalidated = false,
   });
 }
 
@@ -120,17 +131,25 @@ List<OrderBlock> detectOrderBlocks(List<Map<String, dynamic>> candles) {
     final bottom = obCandle['low']!;
 
     bool filled = false;
+    bool mitigated = false;
+    bool invalidated = false;
 
     for (int m = 0; m < orderBlockIndex; m++) {
       if (m == i) continue;
-      if (direction == 'BULLISH' && bars[m]['low']! <= bottom) {
-        filled = true;
-        break;
-      }
 
-      if (direction == 'BEARISH' && bars[m]['high']! >= top) {
-        filled = true;
-        break;
+      final candle = bars[m];
+      final high = candle['high']!;
+      final low = candle['low']!;
+      final close = candle['close']!;
+
+      if (direction == 'BULLISH') {
+        if (close < bottom) invalidated = true;
+        if (high >= bottom && low <= top) mitigated = true;
+        if (low <= bottom) filled = true;
+      } else {
+        if (close > top) invalidated = true;
+        if (high >= bottom && low <= top) mitigated = true;
+        if (high >= top) filled = true;
       }
     }
 
@@ -141,6 +160,8 @@ List<OrderBlock> detectOrderBlocks(List<Map<String, dynamic>> candles) {
         bottom: bottom,
         filled: filled,
         confirmed: true,
+        mitigated: mitigated,
+        invalidated: invalidated,
       ),
     );
   }

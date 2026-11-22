@@ -50,6 +50,44 @@ void main() {
       expect(result.first.confirmed, isTrue);
     });
 
+    test("detects fresh bullish order block", () {
+      final result = detectOrderBlocks(bullishCandles);
+      expect(result.first.status, "FRESH");
+      expect(result.first.mitigated, isFalse);
+      expect(result.first.invalidated, isFalse);
+    });
+
+    test("detects mitigated bullish order block", () {
+      final candles = [
+        {"open": 9.5, "high": 10.0, "low": 9.0, "close": 9.5},
+        ...bullishCandles,
+      ];
+      final result = detectOrderBlocks(candles);
+      expect(result.first.status, "MITIGATED");
+      expect(result.first.mitigated, isTrue);
+      expect(result.first.filled, isFalse);
+    });
+
+    test("detects filled bullish order block", () {
+      final candles = [
+        {"open": 8.5, "high": 9.0, "low": 7.5, "close": 8.2},
+        ...bullishCandles,
+      ];
+      final result = detectOrderBlocks(candles);
+      expect(result.first.status, "FILLED");
+      expect(result.first.filled, isTrue);
+    });
+
+    test("detects invalidated bullish order block", () {
+      final candles = [
+        {"open": 7.5, "high": 8.0, "low": 7.0, "close": 7.5},
+        ...bullishCandles,
+      ];
+      final result = detectOrderBlocks(candles);
+      expect(result.first.status, "INVALIDATED");
+      expect(result.first.invalidated, isTrue);
+    });
+
     test("returns empty when candles are insufficient", () {
       expect(
         detectOrderBlocks([
