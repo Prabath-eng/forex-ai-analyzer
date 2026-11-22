@@ -62,6 +62,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   double? entryPrice;
   double? stopLossPrice;
   double? takeProfitPrice;
+  String riskCalculationMethod = 'PERCENTAGE FALLBACK';
   final double stopLossPercent = 1.0;
   final double takeProfitPercent = 2.0;
   String signalDebug = "--";
@@ -630,6 +631,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       entryPrice = calculatedEntry;
       stopLossPrice = calculatedStopLoss;
       takeProfitPrice = calculatedTakeProfit;
+      riskCalculationMethod = calculatedEntry == null
+          ? 'WAITING'
+          : atrRisk != null
+          ? 'ATR-BASED'
+          : 'PERCENTAGE FALLBACK';
       signal = newSignal;
       signalConfidence = confidence;
       signalBreakdown = newBreakdown;
@@ -1135,6 +1141,25 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     _riskRow('Entry Price', entryPrice!),
                     _riskRow('Stop Loss', stopLossPrice!),
                     _riskRow('Take Profit', takeProfitPrice!),
+                    Row(
+                      children: [
+                        const Text(
+                          'Calculation Method',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        const Spacer(),
+                        Text(
+                          riskCalculationMethod,
+                          style: TextStyle(
+                            color: riskCalculationMethod == 'ATR-BASED'
+                                ? Colors.greenAccent
+                                : Colors.orangeAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
                     const Divider(color: Colors.white24),
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
