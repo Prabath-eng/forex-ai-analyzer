@@ -1,3 +1,4 @@
+import 'atr_calculator.dart';
 import 'stateful_market_structure.dart';
 
 class BacktestTrade {
@@ -55,6 +56,7 @@ class BacktestingEngine {
       assert(takeProfitPercent > 0);
 
   final StatefulMarketStructure _structure = StatefulMarketStructure();
+  final AtrCalculator _atrCalculator = const AtrCalculator();
 
   void reset() {
     _structure.reset();
@@ -280,8 +282,20 @@ class BacktestingEngine {
       final entryPrice = _number(entry, 'open');
       if (entryPrice <= 0) continue;
       final isBuy = signal == 'BUY';
-      final sl = entryPrice * (1 + (isBuy ? -1 : 1) * stopLossPercent / 100);
-      final tp = entryPrice * (1 + (isBuy ? 1 : -1) * takeProfitPercent / 100);
+      final atr = _atrCalculator.calculate(available);
+      final atrRisk = atr == null
+          ? null
+          : _atrCalculator.calculateRisk(
+              direction: signal,
+              entryPrice: entryPrice,
+              atr: atr,
+            );
+      final sl =
+          atrRisk?['stopLoss'] ??
+          entryPrice * (1 + (isBuy ? -1 : 1) * stopLossPercent / 100);
+      final tp =
+          atrRisk?['takeProfit'] ??
+          entryPrice * (1 + (isBuy ? 1 : -1) * takeProfitPercent / 100);
       var exitTime = '';
       var exitPrice = 0.0;
       var result = 'OPEN';
@@ -306,7 +320,8 @@ class BacktestingEngine {
       }
       if (result == 'OPEN') continue;
       nextAvailableIndex = exitIndex + 1;
-      final profit = result == 'WIN' ? takeProfitPercent : -stopLossPercent;
+      final profit =
+          ((exitPrice - entryPrice) / entryPrice) * 100 * (isBuy ? 1 : -1);
       trades.add(
         BacktestTrade(
           direction: signal,
