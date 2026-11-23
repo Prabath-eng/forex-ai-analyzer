@@ -12,6 +12,7 @@ class BacktestTrade {
   final double? exitPrice;
   final String? result;
   final double? profitPercent;
+  final String riskCalculationMethod;
 
   const BacktestTrade({
     required this.direction,
@@ -24,6 +25,7 @@ class BacktestTrade {
     this.exitPrice,
     this.result,
     this.profitPercent,
+    this.riskCalculationMethod = 'PERCENTAGE FALLBACK',
   });
 }
 
@@ -334,6 +336,9 @@ class BacktestingEngine {
           exitPrice: exitPrice,
           result: result,
           profitPercent: profit,
+          riskCalculationMethod: atrRisk != null
+              ? 'ATR-BASED'
+              : 'PERCENTAGE FALLBACK',
         ),
       );
       if (result == 'WIN') wins++;

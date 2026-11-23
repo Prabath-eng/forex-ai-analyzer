@@ -2041,7 +2041,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       child: ListTile(
         title: Text("${trade.direction} - ${trade.result ?? "OPEN"}"),
         subtitle: Text(
-          "Entry: ${trade.entryPrice} | SL: ${trade.stopLoss} | TP: ${trade.takeProfit}\nExit: ${trade.exitPrice ?? "--"}",
+          "Entry: ${trade.entryPrice} | SL: ${trade.stopLoss} | TP: ${trade.takeProfit}\nExit: ${trade.exitPrice ?? "--"}\nCalculation Method: ${trade.riskCalculationMethod}",
         ),
         trailing: Text("${trade.profitPercent?.toStringAsFixed(2) ?? "--"}%"),
       ),

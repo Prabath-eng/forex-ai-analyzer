@@ -26,4 +26,31 @@ void main() {
     );
     expect(result.totalTrades, 0);
   });
+
+  test('BacktestTrade defaults to percentage fallback', () {
+    final trade = BacktestTrade(
+      direction: 'BUY',
+      signalTime: '2026-01-01T00:00:00',
+      entryTime: '2026-01-01T00:15:00',
+      entryPrice: 100.0,
+      stopLoss: 99.0,
+      takeProfit: 102.0,
+    );
+
+    expect(trade.riskCalculationMethod, 'PERCENTAGE FALLBACK');
+  });
+
+  test('BacktestTrade records ATR-based risk method', () {
+    final trade = BacktestTrade(
+      direction: 'BUY',
+      signalTime: '2026-01-01T00:00:00',
+      entryTime: '2026-01-01T00:15:00',
+      entryPrice: 100.0,
+      stopLoss: 98.0,
+      takeProfit: 104.0,
+      riskCalculationMethod: 'ATR-BASED',
+    );
+
+    expect(trade.riskCalculationMethod, 'ATR-BASED');
+  });
 }
