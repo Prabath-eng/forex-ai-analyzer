@@ -2010,6 +2010,22 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             _backtestMetric("Candles Used", "$backtestCandleCount"),
             const SizedBox(height: 20),
             const Text(
+              "EQUITY CURVE",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              height: 190,
+              width: double.infinity,
+              decoration: _boxDecoration(),
+              padding: const EdgeInsets.all(8),
+              child: CustomPaint(
+                painter: EquityCurvePainter(backtestResult!.equityCurvePercent),
+                child: const SizedBox.expand(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
               "TRADE HISTORY",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
@@ -2028,6 +2044,28 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             _backtestMetric(
               "Max Drawdown",
               "${backtestResult!.maxDrawdownPercent.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Profit Factor",
+              backtestResult!.profitFactor.isInfinite
+                  ? "∞"
+                  : backtestResult!.profitFactor.toStringAsFixed(2),
+            ),
+            _backtestMetric(
+              "Average Win",
+              "${backtestResult!.averageWinPercent.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Average Loss",
+              "${backtestResult!.averageLossPercent.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Max Consecutive Wins",
+              "${backtestResult!.maxConsecutiveWins}",
+            ),
+            _backtestMetric(
+              "Max Consecutive Losses",
+              "${backtestResult!.maxConsecutiveLosses}",
             ),
           ],
         ],
@@ -2395,4 +2433,74 @@ class CandleChartPainter extends CustomPainter {
   bool shouldRepaint(covariant CandleChartPainter oldDelegate) {
     return true;
   }
+}
+
+class EquityCurvePainter extends CustomPainter {
+  final List<double> values;
+
+  EquityCurvePainter(this.values);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.length < 2) return;
+
+    const padding = 24.0;
+    final chartWidth = size.width - padding * 2;
+    final chartHeight = size.height - padding * 2;
+
+    final minValue = values.reduce(math.min);
+    final maxValue = values.reduce(math.max);
+    final range = math.max(maxValue - minValue, 1.0);
+
+    double xAt(int index) => padding + chartWidth * index / (values.length - 1);
+
+    double yAt(double value) =>
+        padding + chartHeight * (maxValue - value) / range;
+
+    final gridPaint = Paint()
+      ..color = const Color(0xFF263445)
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < 4; i++) {
+      final y = padding + chartHeight * i / 3;
+      canvas.drawLine(
+        Offset(padding, y),
+        Offset(size.width - padding, y),
+        gridPaint,
+      );
+    }
+
+    final zeroY = yAt(0).clamp(padding, size.height - padding);
+    final zeroPaint = Paint()
+      ..color = Colors.white38
+      ..strokeWidth = 1;
+
+    canvas.drawLine(
+      Offset(padding, zeroY),
+      Offset(size.width - padding, zeroY),
+      zeroPaint,
+    );
+
+    final path = Path();
+    for (int i = 0; i < values.length; i++) {
+      final point = Offset(xAt(i), yAt(values[i]));
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    final linePaint = Paint()
+      ..color = values.last >= 0
+          ? const Color(0xFF00E676)
+          : const Color(0xFFFF5252)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant EquityCurvePainter oldDelegate) => true;
 }

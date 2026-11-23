@@ -37,6 +37,12 @@ class BacktestResult {
   final double netProfitPercent;
   final double maxDrawdownPercent;
   final List<BacktestTrade> trades;
+  final double profitFactor;
+  final double averageWinPercent;
+  final double averageLossPercent;
+  final int maxConsecutiveWins;
+  final int maxConsecutiveLosses;
+  final List<double> equityCurvePercent;
 
   const BacktestResult({
     required this.totalTrades,
@@ -46,6 +52,12 @@ class BacktestResult {
     required this.netProfitPercent,
     required this.maxDrawdownPercent,
     required this.trades,
+    this.profitFactor = 0,
+    this.averageWinPercent = 0,
+    this.averageLossPercent = 0,
+    this.maxConsecutiveWins = 0,
+    this.maxConsecutiveLosses = 0,
+    this.equityCurvePercent = const [],
   });
 }
 
@@ -263,6 +275,13 @@ class BacktestingEngine {
     var equity = 0.0;
     var peak = 0.0;
     var maxDrawdown = 0.0;
+    var grossProfit = 0.0;
+    var grossLoss = 0.0;
+    var currentWinStreak = 0;
+    var currentLossStreak = 0;
+    var maxWinStreak = 0;
+    var maxLossStreak = 0;
+    final equityCurve = <double>[0.0];
     var nextAvailableIndex = 10;
     if (history.length < 11) {
       return BacktestResult(
@@ -341,9 +360,23 @@ class BacktestingEngine {
               : 'PERCENTAGE FALLBACK',
         ),
       );
-      if (result == 'WIN') wins++;
-      if (result == 'LOSS') losses++;
+      if (result == 'WIN') {
+        wins++;
+        grossProfit += profit;
+        currentWinStreak++;
+        currentLossStreak = 0;
+        if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+      } else {
+        losses++;
+        grossLoss += profit.abs();
+        currentLossStreak++;
+        currentWinStreak = 0;
+        if (currentLossStreak > maxLossStreak) {
+          maxLossStreak = currentLossStreak;
+        }
+      }
       equity += profit;
+      equityCurve.add(equity);
       if (equity > peak) peak = equity;
       final drawdown = peak - equity;
       if (drawdown > maxDrawdown) maxDrawdown = drawdown;
@@ -357,6 +390,14 @@ class BacktestingEngine {
       netProfitPercent: equity,
       maxDrawdownPercent: maxDrawdown,
       trades: trades,
+      profitFactor: grossLoss == 0
+          ? (grossProfit > 0 ? double.infinity : 0)
+          : grossProfit / grossLoss,
+      averageWinPercent: wins == 0 ? 0 : grossProfit / wins,
+      averageLossPercent: losses == 0 ? 0 : grossLoss / losses,
+      maxConsecutiveWins: maxWinStreak,
+      maxConsecutiveLosses: maxLossStreak,
+      equityCurvePercent: equityCurve,
     );
   }
 }
