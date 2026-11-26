@@ -53,4 +53,41 @@ void main() {
 
     expect(trade.riskCalculationMethod, 'ATR-BASED');
   });
+
+  test('BUY trade reaches take profit using percentage fallback', () {
+    final candles = [
+      [10.0, 5.0, 8.0, 8.0],
+      [9.0, 4.0, 5.0, 5.0],
+      [12.0, 6.0, 11.0, 11.0],
+      [11.0, 5.0, 6.0, 6.0],
+      [14.0, 7.0, 13.0, 13.0],
+      [13.0, 6.0, 7.0, 7.0],
+      [15.0, 8.0, 14.0, 14.0],
+      [14.0, 7.0, 13.0, 13.0],
+      [18.0, 15.5, 16.0, 16.0],
+      [17.0, 14.5, 16.2, 15.8],
+      [17.0, 16.1, 16.8, 16.2],
+    ];
+
+    final history = List.generate(candles.length, (i) {
+      final bar = candles[i];
+      return {
+        'datetime':
+            '2026-01-01T${(i * 15 ~/ 60).toString().padLeft(2, '0')}:${(i * 15 % 60).toString().padLeft(2, '0')}:00',
+        'open': bar[3],
+        'high': bar[0],
+        'low': bar[1],
+        'close': bar[2],
+      };
+    });
+
+    final result = BacktestingEngine().run(asset: 'XAU/USD', candles: history);
+
+    expect(result.totalTrades, 1);
+    expect(result.wins, 1);
+    expect(result.losses, 0);
+    expect(result.trades.first.direction, 'BUY');
+    expect(result.trades.first.result, 'WIN');
+    expect(result.trades.first.riskCalculationMethod, 'PERCENTAGE FALLBACK');
+  });
 }

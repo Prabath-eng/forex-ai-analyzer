@@ -282,7 +282,7 @@ class BacktestingEngine {
     var maxWinStreak = 0;
     var maxLossStreak = 0;
     final equityCurve = <double>[0.0];
-    var nextAvailableIndex = 10;
+    var nextAvailableIndex = 9;
     if (history.length < 11) {
       return BacktestResult(
         totalTrades: 0,
