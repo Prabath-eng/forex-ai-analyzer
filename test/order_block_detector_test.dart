@@ -4,39 +4,41 @@ import 'package:forex_ai_analyzer/order_block_detector.dart';
 void main() {
   group('Order Block Detector', () {
     final bullishCandles = [
-      {"open": 12.0, "high": 16.0, "low": 11.0, "close": 15.0},
-      {"open": 10.0, "high": 11.0, "low": 8.0, "close": 9.0},
-      {"open": 9.0, "high": 10.0, "low": 8.5, "close": 9.5},
-      {"open": 9.5, "high": 10.5, "low": 9.0, "close": 10.0},
-      {"open": 10.0, "high": 11.0, "low": 9.5, "close": 10.5},
-      {"open": 10.5, "high": 11.5, "low": 10.0, "close": 11.0},
-      {"open": 11.0, "high": 12.0, "low": 10.5, "close": 11.5},
-      {"open": 11.5, "high": 12.5, "low": 11.0, "close": 12.0},
-      {"open": 12.0, "high": 13.0, "low": 11.5, "close": 12.5},
+      {"open": 14.0, "high": 15.0, "low": 13.5, "close": 14.5},
+      {"open": 13.5, "high": 14.5, "low": 13.2, "close": 14.0},
+      {"open": 12.0, "high": 15.5, "low": 11.8, "close": 15.0},
+      {"open": 12.5, "high": 13.0, "low": 11.5, "close": 12.0},
+      {"open": 11.0, "high": 11.5, "low": 10.5, "close": 11.2},
+      {"open": 11.2, "high": 13.5, "low": 10.8, "close": 11.3},
+      {"open": 11.0, "high": 11.8, "low": 9.8, "close": 10.9},
+      {"open": 10.5, "high": 12.0, "low": 10.0, "close": 10.8},
+      {"open": 10.0, "high": 10.8, "low": 9.0, "close": 10.2},
     ];
+
+    final bearishCandles = [
+      {"open": 9.0, "high": 9.5, "low": 8.0, "close": 8.8},
+      {"open": 10.0, "high": 10.2, "low": 8.5, "close": 9.0},
+      {"open": 14.0, "high": 14.2, "low": 9.0, "close": 10.0},
+      {"open": 12.0, "high": 13.5, "low": 11.5, "close": 13.0},
+      {"open": 12.5, "high": 13.0, "low": 11.8, "close": 12.3},
+      {"open": 12.0, "high": 12.5, "low": 10.5, "close": 12.1},
+      {"open": 12.0, "high": 13.0, "low": 11.2, "close": 12.2},
+      {"open": 12.5, "high": 13.0, "low": 11.5, "close": 12.4},
+      {"open": 13.0, "high": 14.0, "low": 12.0, "close": 13.2},
+    ];
+
     test("rejects order block without BOS confirmation", () {
       final candles = List<Map<String, dynamic>>.from(bullishCandles);
-      candles[0] = {"open": 10.0, "high": 12.5, "low": 9.5, "close": 12.0};
+      candles[1] = {"open": 13.5, "high": 14.0, "low": 12.8, "close": 13.0};
       expect(detectOrderBlocks(candles), isEmpty);
     });
 
     test("ignores weak impulse without displacement", () {
       final candles = List<Map<String, dynamic>>.from(bullishCandles);
-      candles[0] = {"open": 12.0, "high": 13.0, "low": 11.0, "close": 12.5};
+      candles[2] = {"open": 12.0, "high": 13.0, "low": 11.8, "close": 12.5};
       expect(detectOrderBlocks(candles), isEmpty);
     });
 
-    final bearishCandles = [
-      {"open": 15.0, "high": 16.0, "low": 9.0, "close": 9.0},
-      {"open": 12.0, "high": 14.0, "low": 11.0, "close": 13.0},
-      {"open": 13.0, "high": 14.0, "low": 12.0, "close": 13.5},
-      {"open": 13.0, "high": 13.5, "low": 12.0, "close": 12.5},
-      {"open": 12.5, "high": 13.0, "low": 11.5, "close": 12.0},
-      {"open": 12.0, "high": 12.5, "low": 11.0, "close": 11.5},
-      {"open": 11.5, "high": 12.0, "low": 10.5, "close": 11.0},
-      {"open": 11.0, "high": 11.5, "low": 10.5, "close": 10.5},
-      {"open": 10.5, "high": 11.0, "low": 9.5, "close": 10.0},
-    ];
     test("detects confirmed bullish order block", () {
       final result = detectOrderBlocks(bullishCandles);
       expect(result.length, 1);
@@ -59,7 +61,7 @@ void main() {
 
     test("detects mitigated bullish order block", () {
       final candles = [
-        {"open": 9.5, "high": 10.0, "low": 9.0, "close": 9.5},
+        {"open": 12.0, "high": 12.5, "low": 11.8, "close": 12.1},
         ...bullishCandles,
       ];
       final result = detectOrderBlocks(candles);
@@ -70,7 +72,7 @@ void main() {
 
     test("detects filled bullish order block", () {
       final candles = [
-        {"open": 8.5, "high": 9.0, "low": 7.5, "close": 8.2},
+        {"open": 12.0, "high": 12.5, "low": 11.0, "close": 12.0},
         ...bullishCandles,
       ];
       final result = detectOrderBlocks(candles);

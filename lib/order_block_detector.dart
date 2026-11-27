@@ -1,3 +1,25 @@
+double? _findLatestSwingHigh(List<Map<String, double>> bars) {
+  if (bars.length < 3) return null;
+  for (int i = 1; i < bars.length - 1; i++) {
+    final high = bars[i]["high"]!;
+    if (high > bars[i - 1]["high"]! && high > bars[i + 1]["high"]!) {
+      return high;
+    }
+  }
+  return null;
+}
+
+double? _findLatestSwingLow(List<Map<String, double>> bars) {
+  if (bars.length < 3) return null;
+  for (int i = 1; i < bars.length - 1; i++) {
+    final low = bars[i]["low"]!;
+    if (low < bars[i - 1]["low"]! && low < bars[i + 1]["low"]!) {
+      return low;
+    }
+  }
+  return null;
+}
+
 class OrderBlock {
   final String direction;
   final double top;
@@ -101,29 +123,20 @@ List<OrderBlock> detectOrderBlocks(List<Map<String, dynamic>> candles) {
     if (orderBlockIndex == null) continue;
 
     final obCandle = bars[orderBlockIndex];
-    double referenceLevel = direction == 'BULLISH' ? 0 : double.infinity;
 
-    final end = orderBlockIndex + 5 < bars.length
-        ? orderBlockIndex + 5
-        : bars.length - 1;
+    // Use only candles older than the order block to find its swing level.
+    final olderBars = bars.sublist(orderBlockIndex + 1);
+    final swingLevel = direction == 'BULLISH'
+        ? _findLatestSwingHigh(olderBars)
+        : _findLatestSwingLow(olderBars);
 
-    if (end <= orderBlockIndex) continue;
+    // Exclude bars[0], which may still be forming.
+    if (i < 2 || swingLevel == null) continue;
 
-    for (int k = orderBlockIndex + 1; k <= end; k++) {
-      if (direction == 'BULLISH') {
-        if (bars[k]['high']! > referenceLevel) {
-          referenceLevel = bars[k]['high']!;
-        }
-      } else {
-        if (bars[k]['low']! < referenceLevel) {
-          referenceLevel = bars[k]['low']!;
-        }
-      }
-    }
-
+    // Require two consecutive completed closes beyond the swing level.
     final confirmed = direction == 'BULLISH'
-        ? impulse['close']! > referenceLevel
-        : impulse['close']! < referenceLevel;
+        ? bars[i]['close']! > swingLevel && bars[i - 1]['close']! > swingLevel
+        : bars[i]['close']! < swingLevel && bars[i - 1]['close']! < swingLevel;
 
     if (!confirmed) continue;
 
