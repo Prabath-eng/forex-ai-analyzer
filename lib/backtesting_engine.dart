@@ -1,4 +1,6 @@
 import 'atr_calculator.dart';
+import 'fvg_detector.dart';
+import 'order_block_detector.dart';
 import 'stateful_market_structure.dart';
 
 class BacktestTrade {
@@ -237,6 +239,30 @@ class BacktestingEngine {
         price >= levels['resistance']! * 0.998) {
       srScore = -1;
     }
+    var fvgScore = 0;
+    if (price > 0) {
+      for (final gap in detectFairValueGaps(candles)) {
+        if (!gap.filled && price >= gap.bottom && price <= gap.top) {
+          fvgScore = gap.direction == 'BULLISH' ? 1 : -1;
+          break;
+        }
+      }
+    }
+
+    var orderBlockScore = 0;
+    if (price > 0) {
+      for (final block in detectOrderBlocks(candles)) {
+        if (block.confirmed &&
+            !block.filled &&
+            !block.invalidated &&
+            price >= block.bottom &&
+            price <= block.top) {
+          orderBlockScore = block.direction == 'BULLISH' ? 1 : -1;
+          break;
+        }
+      }
+    }
+
     final trendScore = trend == 'UPTREND'
         ? 2
         : trend == 'DOWNTREND'
@@ -248,7 +274,9 @@ class BacktestingEngine {
         candleScore +
         momentumScore +
         srScore +
-        trendScore;
+        trendScore +
+        fvgScore +
+        orderBlockScore;
     if (trend == 'UPTREND' && structure.trend == 'BULLISH' && total >= 3) {
       return 'BUY';
     }
