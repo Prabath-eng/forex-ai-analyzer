@@ -2026,13 +2026,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   }
 
   Widget _buildBacktestingPage() {
+    final result = backtestResult;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "BACKTESTING",
+            "BACKTESTING DASHBOARD",
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
@@ -2045,15 +2047,77 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ),
           ),
           if (backtestMessage != null)
-            Text(
-              backtestMessage!,
-              style: const TextStyle(color: Colors.orangeAccent),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                backtestMessage!,
+                style: const TextStyle(color: Colors.orangeAccent),
+              ),
             ),
-          if (backtestResult != null) ...[
+          if (result != null) ...[
             const SizedBox(height: 16),
             _backtestMetric("Asset", backtestAsset ?? "--"),
             _backtestMetric("Timeframe", backtestTimeframe ?? "--"),
             _backtestMetric("Candles Used", "$backtestCandleCount"),
+            const SizedBox(height: 20),
+            const Text(
+              "PERFORMANCE SUMMARY",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.8,
+              children: [
+                _backtestMetricTile(
+                  "WIN RATE",
+                  "${result.winRate.toStringAsFixed(2)}%",
+                  valueColor: const Color(0xFF00C853),
+                ),
+                _backtestMetricTile(
+                  "NET PROFIT",
+                  "${result.netProfitPercent.toStringAsFixed(2)}%",
+                  valueColor: result.netProfitPercent >= 0
+                      ? const Color(0xFF00C853)
+                      : Colors.redAccent,
+                ),
+                _backtestMetricTile("TOTAL TRADES", "${result.totalTrades}"),
+                _backtestMetricTile(
+                  "MAX DRAWDOWN",
+                  "${result.maxDrawdownPercent.toStringAsFixed(2)}%",
+                  valueColor: Colors.orangeAccent,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _backtestMetric("Wins", "${result.wins}"),
+            _backtestMetric("Losses", "${result.losses}"),
+            _backtestMetric(
+              "Profit Factor",
+              result.profitFactor.isInfinite
+                  ? "∞"
+                  : result.profitFactor.toStringAsFixed(2),
+            ),
+            _backtestMetric(
+              "Average Win",
+              "${result.averageWinPercent.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Average Loss",
+              "${result.averageLossPercent.toStringAsFixed(2)}%",
+            ),
+            _backtestMetric(
+              "Max Consecutive Wins",
+              "${result.maxConsecutiveWins}",
+            ),
+            _backtestMetric(
+              "Max Consecutive Losses",
+              "${result.maxConsecutiveLosses}",
+            ),
             const SizedBox(height: 20),
             const Text(
               "EQUITY CURVE",
@@ -2066,7 +2130,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               decoration: _boxDecoration(),
               padding: const EdgeInsets.all(8),
               child: CustomPaint(
-                painter: EquityCurvePainter(backtestResult!.equityCurvePercent),
+                painter: EquityCurvePainter(result.equityCurvePercent),
                 child: const SizedBox.expand(),
               ),
             ),
@@ -2075,45 +2139,59 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               "TRADE HISTORY",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            ...backtestResult!.trades.map(_backtestTradeCard),
-            _backtestMetric("Total Trades", "${backtestResult!.totalTrades}"),
-            _backtestMetric("Wins", "${backtestResult!.wins}"),
-            _backtestMetric("Losses", "${backtestResult!.losses}"),
-            _backtestMetric(
-              "Win Rate",
-              "${backtestResult!.winRate.toStringAsFixed(2)}%",
-            ),
-            _backtestMetric(
-              "Net Profit",
-              "${backtestResult!.netProfitPercent.toStringAsFixed(2)}%",
-            ),
-            _backtestMetric(
-              "Max Drawdown",
-              "${backtestResult!.maxDrawdownPercent.toStringAsFixed(2)}%",
-            ),
-            _backtestMetric(
-              "Profit Factor",
-              backtestResult!.profitFactor.isInfinite
-                  ? "∞"
-                  : backtestResult!.profitFactor.toStringAsFixed(2),
-            ),
-            _backtestMetric(
-              "Average Win",
-              "${backtestResult!.averageWinPercent.toStringAsFixed(2)}%",
-            ),
-            _backtestMetric(
-              "Average Loss",
-              "${backtestResult!.averageLossPercent.toStringAsFixed(2)}%",
-            ),
-            _backtestMetric(
-              "Max Consecutive Wins",
-              "${backtestResult!.maxConsecutiveWins}",
-            ),
-            _backtestMetric(
-              "Max Consecutive Losses",
-              "${backtestResult!.maxConsecutiveLosses}",
+            const SizedBox(height: 10),
+            if (result.trades.isEmpty)
+              const Text(
+                "No completed trades found.",
+                style: TextStyle(color: Colors.white54),
+              )
+            else
+              ...result.trades.map(_backtestTradeCard),
+            const SizedBox(height: 12),
+            const Text(
+              "Note: Net Profit is the sum of individual trade percentages, "
+              "not compounded account return. Open trades are excluded.",
+              style: TextStyle(color: Colors.white54, fontSize: 11),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _backtestMetricTile(
+    String label,
+    String value, {
+    Color valueColor = Colors.white,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: _boxDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );
