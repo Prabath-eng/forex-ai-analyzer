@@ -88,6 +88,31 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     );
   }
 
+  String _apiInterval(String timeframe) {
+    switch (timeframe) {
+      case '1m':
+        return '1min';
+      case '5m':
+        return '5min';
+      case '15m':
+        return '15min';
+      case '30m':
+        return '30min';
+      case '1H':
+        return '1h';
+      case '4H':
+        return '4h';
+      case '1D':
+        return '1day';
+      default:
+        return '15min';
+    }
+  }
+
+  String _candleCacheKey(String asset, String timeframe) {
+    return '${asset.toUpperCase()}_${timeframe.toUpperCase()}';
+  }
+
   final Map<String, List<Map<String, dynamic>>> _candleCache = {};
   String marketTrend = 'WAITING';
   String trendStrength = '--';
@@ -302,6 +327,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   Future<void> _loadMarketData() async {
     final requestedAsset = selectedAsset;
+    final requestedTimeframe = selectedTimeframe;
+    final cacheKey = _candleCacheKey(requestedAsset, requestedTimeframe);
     final cached = _quoteCache[requestedAsset];
     if (cached != null) {
       setState(() {
@@ -347,15 +374,20 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       });
 
       try {
-        final candles = _candleCache[requestedAsset] != null
-            ? {'values': _candleCache[requestedAsset]}
+        final cachedCandles = _candleCache[cacheKey];
+        final candles = cachedCandles != null
+            ? {'values': cachedCandles}
             : await _marketDataService.getTimeSeries(
                 requestedAsset,
-                interval: '15min',
+                interval: _apiInterval(requestedTimeframe),
                 outputsize: 100,
               );
 
-        if (!mounted || selectedAsset != requestedAsset) return;
+        if (!mounted ||
+            selectedAsset != requestedAsset ||
+            selectedTimeframe != requestedTimeframe) {
+          return;
+        }
 
         final values = candles['values'];
 
@@ -370,7 +402,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               a["datetime"]?.toString() ?? "",
             ),
           );
-          _candleCache[requestedAsset] = liveCandles;
+          _candleCache[cacheKey] = liveCandles;
           _updateMarketStructure();
           _calculateMarketTrend();
 
@@ -384,7 +416,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         debugPrint('Candlestick request skipped: $e');
       }
     } catch (e) {
-      if (!mounted || selectedAsset != requestedAsset) return;
+      if (!mounted ||
+          selectedAsset != requestedAsset ||
+          selectedTimeframe != requestedTimeframe) {
+        return;
+      }
 
       setState(() {
         marketPrice = 'API Error';
@@ -395,7 +431,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   }
 
   void _runBacktest() {
-    final candles = _candleCache[selectedAsset] ?? liveCandles;
+    final cacheKey = _candleCacheKey(selectedAsset, selectedTimeframe);
+    final candles = _candleCache[cacheKey] ?? liveCandles;
     if (candles.length < 11) {
       setState(() => backtestMessage = "Need at least 11 candles");
       return;
@@ -1381,6 +1418,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     setState(() {
                       selectedTimeframe = value;
                     });
+                    _loadMarketData();
                   },
                 ),
               ),
