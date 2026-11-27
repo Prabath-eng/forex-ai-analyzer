@@ -262,8 +262,17 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     style: const TextStyle(color: Colors.white),
                   ),
                   Text(
-                    '${block.confirmed ? "CONFIRMED" : "UNCONFIRMED"} | ${block.filled ? "FILLED" : "UNFILLED"}',
-                    style: const TextStyle(color: Colors.white70),
+                    '${block.confirmed ? "CONFIRMED" : "UNCONFIRMED"} | ${block.status}',
+                    style: TextStyle(
+                      color: block.invalidated
+                          ? Colors.redAccent
+                          : block.filled
+                          ? Colors.orangeAccent
+                          : block.mitigated
+                          ? Colors.amberAccent
+                          : Colors.greenAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
