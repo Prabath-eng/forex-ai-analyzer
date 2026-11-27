@@ -2165,8 +2165,14 @@ class CandleChartPainter extends CustomPainter {
     const double leftPadding = 8;
     const double rightPadding = 45;
     final List<Map<String, dynamic>> chartCandles = [];
+    final chartSourceIndices = <int>[];
 
-    for (final candle in candles.reversed) {
+    for (
+      int sourceIndex = candles.length - 1;
+      sourceIndex >= 0;
+      sourceIndex--
+    ) {
+      final candle = candles[sourceIndex];
       final double close =
           double.tryParse(candle["close"]?.toString() ?? "") ?? 0;
       if (close <= 0) continue;
@@ -2186,6 +2192,7 @@ class CandleChartPainter extends CustomPainter {
         "high": math.max(rawHigh, math.max(open, close)),
         "low": math.min(rawLow, math.min(open, close)),
       });
+      chartSourceIndices.add(sourceIndex);
     }
 
     if (chartCandles.isEmpty) {
@@ -2306,6 +2313,9 @@ class CandleChartPainter extends CustomPainter {
     for (final block in orderBlocks.where(
       (b) => !b.filled && !b.invalidated && b.confirmed,
     )) {
+      final chartIndex = chartSourceIndices.indexOf(block.sourceIndex);
+      if (chartIndex < 0) continue;
+      final zoneLeft = leftPadding + candleStep * chartIndex;
       final top = priceToY(block.top);
       final bottom = priceToY(block.bottom);
       final isBullish = block.direction == "BULLISH";
@@ -2316,7 +2326,7 @@ class CandleChartPainter extends CustomPainter {
         )
         ..style = PaintingStyle.fill;
       canvas.drawRect(
-        Rect.fromLTRB(leftPadding, top, chartWidth - rightPadding, bottom),
+        Rect.fromLTRB(zoneLeft, top, chartWidth - rightPadding, bottom),
         paint,
       );
       final label = TextPainter(
@@ -2330,7 +2340,7 @@ class CandleChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      label.paint(canvas, Offset(leftPadding + 4, top + 2));
+      label.paint(canvas, Offset(zoneLeft + 4, top + 2));
     }
 
     for (int i = 0; i < chartPrices.length; i++) {

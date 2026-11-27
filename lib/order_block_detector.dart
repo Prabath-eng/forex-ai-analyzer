@@ -28,6 +28,7 @@ class OrderBlock {
   final bool confirmed;
   final bool mitigated;
   final bool invalidated;
+  final int sourceIndex;
 
   String get status {
     if (invalidated) return 'INVALIDATED';
@@ -44,6 +45,7 @@ class OrderBlock {
     required this.confirmed,
     this.mitigated = false,
     this.invalidated = false,
+    required this.sourceIndex,
   });
 }
 
@@ -55,8 +57,10 @@ List<OrderBlock> detectOrderBlocks(List<Map<String, dynamic>> candles) {
   }
 
   final bars = <Map<String, double>>[];
+  final sourceIndices = <int>[];
 
-  for (final candle in candles) {
+  for (int index = 0; index < candles.length; index++) {
+    final candle = candles[index];
     final open = price(candle, 'open');
     final high = price(candle, 'high');
     final low = price(candle, 'low');
@@ -75,6 +79,7 @@ List<OrderBlock> detectOrderBlocks(List<Map<String, dynamic>> candles) {
     }
 
     bars.add({'open': open, 'high': high, 'low': low, 'close': close});
+    sourceIndices.add(index);
   }
 
   if (bars.length < 9) return blocks;
@@ -173,6 +178,7 @@ List<OrderBlock> detectOrderBlocks(List<Map<String, dynamic>> candles) {
         bottom: bottom,
         filled: filled,
         confirmed: true,
+        sourceIndex: sourceIndices[orderBlockIndex],
         mitigated: mitigated,
         invalidated: invalidated,
       ),
