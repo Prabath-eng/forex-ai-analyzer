@@ -289,6 +289,8 @@ class BacktestingEngine {
   BacktestResult run({
     required String asset,
     required List<Map<String, dynamic>> candles,
+    DateTime? startDate,
+    DateTime? endDate,
   }) {
     reset();
     final history = List<Map<String, dynamic>>.from(candles);
@@ -322,12 +324,31 @@ class BacktestingEngine {
         trades: [],
       );
     }
+    final startKey = startDate?.toIso8601String().substring(0, 10);
+    final endKey = endDate?.toIso8601String().substring(0, 10);
+
     for (var i = 9; i < history.length - 1; i++) {
       if (i < nextAvailableIndex) continue;
+
+      final signalTime = (history[i]['datetime'] ?? '').toString();
+      final signalDay = signalTime.length >= 10
+          ? signalTime.substring(0, 10)
+          : '';
+      if ((startKey != null || endKey != null) && signalDay.isEmpty) continue;
+      if (startKey != null && signalDay.compareTo(startKey) < 0) continue;
+      if (endKey != null && signalDay.compareTo(endKey) > 0) continue;
+
       final available = history.sublist(0, i + 1).reversed.toList();
       final signal = _signalForCandles(available, asset);
       if (signal != 'BUY' && signal != 'SELL') continue;
       final entry = history[i + 1];
+      final entryTime = (entry['datetime'] ?? '').toString();
+      final entryDay = entryTime.length >= 10 ? entryTime.substring(0, 10) : '';
+      if (endKey != null &&
+          (entryDay.isEmpty || entryDay.compareTo(endKey) > 0)) {
+        continue;
+      }
+
       final entryPrice = _number(entry, 'open');
       if (entryPrice <= 0) continue;
       final isBuy = signal == 'BUY';
@@ -351,6 +372,13 @@ class BacktestingEngine {
       var exitIndex = -1;
       for (var j = i + 1; j < history.length; j++) {
         final bar = history[j];
+        final barTime = (bar['datetime'] ?? '').toString();
+        final barDay = barTime.length >= 10 ? barTime.substring(0, 10) : '';
+        if (endKey != null &&
+            (barDay.isEmpty || barDay.compareTo(endKey) > 0)) {
+          break;
+        }
+
         final high = _number(bar, 'high');
         final low = _number(bar, 'low');
         if (isBuy ? low <= sl : high >= sl) {

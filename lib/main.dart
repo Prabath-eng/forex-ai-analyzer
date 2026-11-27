@@ -56,6 +56,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   String? backtestAsset;
   String? backtestTimeframe;
   int backtestCandleCount = 0;
+  DateTime? backtestStartDate;
+  DateTime? backtestEndDate;
 
   String signal = 'NEUTRAL';
   int signalConfidence = 50;
@@ -444,6 +446,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     final result = BacktestingEngine().run(
       asset: selectedAsset,
       candles: candles,
+      startDate: backtestStartDate,
+      endDate: backtestEndDate,
     );
     if (!mounted) return;
     setState(() {
@@ -2063,8 +2067,69 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     );
   }
 
+  Future<void> _pickBacktestDate({
+    required bool isStart,
+    required DateTime firstDate,
+    required DateTime lastDate,
+  }) async {
+    final minDate = isStart ? firstDate : (backtestStartDate ?? firstDate);
+    final maxDate = isStart ? (backtestEndDate ?? lastDate) : lastDate;
+
+    var initialDate =
+        (isStart ? backtestStartDate : backtestEndDate) ??
+        (isStart ? firstDate : lastDate);
+
+    if (initialDate.isBefore(minDate)) initialDate = minDate;
+    if (initialDate.isAfter(maxDate)) initialDate = maxDate;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: minDate,
+      lastDate: maxDate,
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      if (isStart) {
+        backtestStartDate = picked;
+      } else {
+        backtestEndDate = picked;
+      }
+      backtestResult = null;
+    });
+  }
+
   Widget _buildBacktestingPage() {
     final result = backtestResult;
+    final cacheKey = _candleCacheKey(selectedAsset, selectedTimeframe);
+    final availableCandles = _candleCache[cacheKey] ?? liveCandles;
+    final availableDates =
+        availableCandles
+            .map((c) => DateTime.tryParse((c['datetime'] ?? '').toString()))
+            .whereType<DateTime>()
+            .toList()
+          ..sort();
+
+    final historyStart = availableDates.isEmpty
+        ? null
+        : DateTime(
+            availableDates.first.year,
+            availableDates.first.month,
+            availableDates.first.day,
+          );
+    final historyEnd = availableDates.isEmpty
+        ? null
+        : DateTime(
+            availableDates.last.year,
+            availableDates.last.month,
+            availableDates.last.day,
+          );
+
+    String dateLabel(DateTime? date) => date == null
+        ? 'All available'
+        : date.toIso8601String().substring(0, 10);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2084,6 +2149,62 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               label: Text(isBacktesting ? "Running..." : "RUN BACKTEST"),
             ),
           ),
+          const SizedBox(height: 12),
+          const Text(
+            "BACKTEST DATE RANGE",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          if (historyStart != null && historyEnd != null) ...[
+            Text(
+              "Available history: ${dateLabel(historyStart)} to ${dateLabel(historyEnd)}",
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isBacktesting
+                        ? null
+                        : () => _pickBacktestDate(
+                            isStart: true,
+                            firstDate: historyStart,
+                            lastDate: historyEnd,
+                          ),
+                    child: Text("Start: ${dateLabel(backtestStartDate)}"),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isBacktesting
+                        ? null
+                        : () => _pickBacktestDate(
+                            isStart: false,
+                            firstDate: historyStart,
+                            lastDate: historyEnd,
+                          ),
+                    child: Text("End: ${dateLabel(backtestEndDate)}"),
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: isBacktesting
+                  ? null
+                  : () => setState(() {
+                      backtestStartDate = null;
+                      backtestEndDate = null;
+                      backtestResult = null;
+                    }),
+              child: const Text("CLEAR DATE FILTER"),
+            ),
+          ] else
+            const Text(
+              "Load market candles to select a date range.",
+              style: TextStyle(color: Colors.orangeAccent),
+            ),
           if (backtestMessage != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
