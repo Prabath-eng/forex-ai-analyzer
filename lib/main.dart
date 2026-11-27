@@ -518,6 +518,37 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     }
     score += momentumScore;
 
+    int fvgScore = 0;
+    String fvgReason = 'No active FVG at current price';
+    if (price > 0) {
+      for (final gap in detectFairValueGaps(liveCandles)) {
+        if (!gap.filled && price >= gap.bottom && price <= gap.top) {
+          fvgScore = gap.direction == 'BULLISH' ? 1 : -1;
+          fvgReason = '${gap.direction} FVG zone contains current price';
+          break;
+        }
+      }
+    }
+    score += fvgScore;
+
+    int orderBlockScore = 0;
+    String orderBlockReason = 'No active Order Block at current price';
+    if (price > 0) {
+      for (final block in detectOrderBlocks(liveCandles)) {
+        if (block.confirmed &&
+            !block.filled &&
+            !block.invalidated &&
+            price >= block.bottom &&
+            price <= block.top) {
+          orderBlockScore = block.direction == 'BULLISH' ? 1 : -1;
+          orderBlockReason =
+              '${block.direction} Order Block contains current price';
+          break;
+        }
+      }
+    }
+    score += orderBlockScore;
+
     // Require trend and ICT/SMC structure to agree.
     // Block BUY / SELL while a CHOCH reversal is confirmed.
     final chochActive = marketStructure.choch;
@@ -532,7 +563,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         marketStructure.trend == 'BEARISH';
 
     debugPrint(
-      'SIGNAL DEBUG: total=$score, liquidity=$liquidityLevelScore, sweep=$sweepScore, candle=$candleScore, SR=$srScore, trendScore=$trendScore, momentum=$momentumScore, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}',
+      'SIGNAL DEBUG: total=$score, liquidity=$liquidityLevelScore, sweep=$sweepScore, candle=$candleScore, SR=$srScore, trendScore=$trendScore, momentum=$momentumScore, FVG=$fvgScore, OB=$orderBlockScore, trend=$marketTrend, structure=${marketStructure.trend}, candles=${liveCandles.length}',
     );
 
     String newSignal = 'NEUTRAL';
@@ -607,6 +638,12 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             : momentumScore < 0
             ? 'Recent average closes are falling'
             : 'Momentum is neutral or insufficient',
+      },
+      {'name': 'Fair Value Gap', 'score': '$fvgScore', 'reason': fvgReason},
+      {
+        'name': 'Order Block',
+        'score': '$orderBlockScore',
+        'reason': orderBlockReason,
       },
       {'name': 'Final Decision', 'score': '$score', 'reason': decisionReason},
     ];
